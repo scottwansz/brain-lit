@@ -53,6 +53,7 @@ class AutoLoginSession:
         logger.info(response.content)
 
         if response.status_code != 201:
+            logger.error("登录失败: %s/%s", self.username, self.password)
             raise ConnectionError(f"登录失败，状态码: {response.status_code}")
 
         # 尝试提取用户ID

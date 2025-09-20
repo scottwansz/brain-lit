@@ -2,10 +2,16 @@ import streamlit as st
 import time
 import sys
 import os
+import logging
+import streamlit_js_eval
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from brain_lit.logger import setup_logger
+
+# 设置logger
+logger = setup_logger()
 
 def format_time_remaining(seconds):
     """格式化剩余时间显示"""
@@ -25,6 +31,15 @@ def format_time_remaining(seconds):
 
 def render_main_page():
     """显示主页面"""
+    # 记录调试信息到日志
+    logger.info("当前会话状态:")
+    logger.info(f"- logged_in: {st.session_state.get('logged_in', 'Not set')}")
+    logger.info(f"- username: {st.session_state.get('username', 'Not set')}")
+    logger.info(f"- user_id: {st.session_state.get('user_id', 'Not set')}")
+    logger.info(f"- saved_username: {st.session_state.get('saved_username', 'Not set')}")
+    logger.info(f"- saved_password是否存在: {bool(st.session_state.get('saved_password', ''))}")
+    logger.info(f"- login_time: {st.session_state.get('login_time', 'Not set')}")
+    
     # 使用全局会话对象以获取登录信息
     session = st.session_state.global_session
     time_until_expiry = session.get_time_until_expiry()
@@ -55,7 +70,19 @@ def render_main_page():
             st.session_state.logged_in = False
             st.session_state.username = ""
             st.session_state.user_id = ""
-            st.session_state.login_time = ""
+            # 清除保存的凭据
+            if 'saved_username' in st.session_state:
+                del st.session_state.saved_username
+            if 'saved_password' in st.session_state:
+                del st.session_state.saved_password
+            if 'login_time' in st.session_state:
+                del st.session_state.login_time
+            # 同时清除浏览器存储的凭据
+            try:
+                streamlit_js_eval.set_cookie("brain_lit_credentials", "", -1)  # 删除cookie
+                logger.info("已从浏览器cookie清除凭据")
+            except Exception as e:
+                logger.error(f"从浏览器清除凭据时出错: {e}")
             st.success("已退出登录")
             time.sleep(1)
             st.rerun()
