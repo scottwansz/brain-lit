@@ -32,6 +32,7 @@ if 'logged_in' not in st.session_state:
 if 'username' not in st.session_state:
     st.session_state.username = ""
 
+
 # 创建全局AutoLoginSession实例
 if 'global_session' not in st.session_state:
     st.session_state.global_session = AutoLoginSession()
@@ -59,6 +60,10 @@ def load_session_from_browser():
     try:
         # 从cookie中获取凭据
         credentials_json = streamlit_js_eval.get_cookie("brain_lit_session")
+
+        # 等待JavaScript环境完全加载，确保能正确读取cookie
+        time.sleep(0.1)
+
         logger.info(f"从浏览器cookie获取到的凭据: {credentials_json}")
         if credentials_json:
             credentials = json.loads(credentials_json)
@@ -86,6 +91,9 @@ def try_auto_login():
     """尝试自动登录"""
     logger.info("开始尝试自动登录...")
     
+    # 等待JavaScript环境完全加载，确保能正确读取cookie
+    time.sleep(0.1)
+    
     # 获取全局session实例
     session = st.session_state.global_session
     
@@ -109,7 +117,7 @@ def try_auto_login():
     
     # 如果AutoLoginSession中没有凭据或登录失败，尝试从浏览器存储加载
     saved_username, saved_password, saved_user_id = load_session_from_browser()
-    
+
     logger.info(f"保存的用户名={saved_username}, 保存的密码是否存在={bool(saved_password)}, 保存的用户ID={saved_user_id}")
     
     # 如果有保存的凭据，尝试自动登录
@@ -151,15 +159,15 @@ def try_auto_login():
         logger.info("没有找到保存的凭据")
     return False
 
-# 应用启动时检查自动登录
-logger.info("应用启动，当前st.session_state内容:")
-for key, value in st.session_state.items():
-    logger.info(f"- {key}: {value}")
-
-try_auto_login()
-
 def main():
     """主应用函数"""
+    try_auto_login()
+
+    # 应用启动时检查自动登录
+    logger.info("应用启动，当前st.session_state内容:")
+    for key, value in st.session_state.items():
+        logger.info(f"- {key}: {value}")
+
     if not st.session_state.logged_in:
         render_login_page()
     else:

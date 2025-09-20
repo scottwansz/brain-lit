@@ -36,13 +36,15 @@ class AutoLoginSession:
     def login(self):
         logger.info("正在登录系统...")
 
-        if self.username is None or self.password is None:
-            load_dotenv()
-            self.username = os.getenv('BRAIN_USERNAME')
-            self.password = os.getenv('BRAIN_PASSWORD')
-            if not self.username or not self.password:
-                logger.error("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
-                raise ValueError("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
+        if not self.username or not self.password:
+            logger.error("无用户名和密码信息")
+            raise ValueError("无用户名和密码信息")
+            # load_dotenv()
+            # self.username = os.getenv('BRAIN_USERNAME')
+            # self.password = os.getenv('BRAIN_PASSWORD')
+            # if not self.username or not self.password:
+            #     logger.error("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
+            #     raise ValueError("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
 
         # 创建新会话
         self._session = requests.Session()
@@ -85,11 +87,7 @@ class AutoLoginSession:
         # 检查是否需要刷新登录
         if (current_time - self.last_login_time > self.login_refresh_interval
                 or self.retry_count >= self.max_retries):
-            # 如果有用户名密码则使用凭据重新登录，否则使用环境变量
-            if self.username and self.password:
-                self.login_with_credentials(self.username, self.password)
-            else:
-                self.login()
+            self.login()
 
     def request(self, method, url, **kwargs):
         """发送请求并在会话失效时自动重试登录"""
@@ -101,11 +99,7 @@ class AutoLoginSession:
             # 检测到会话失效
             if response.status_code in (401, 403):
                 print(f"会话过期 ({response.status_code})，尝试重新登录...")
-                # 如果有用户名密码则使用凭据重新登录，否则使用环境变量
-                if self.username and self.password:
-                    self.login_with_credentials(self.username, self.password)
-                else:
-                    self.login()
+                self.login()
                 response = self._session.request(method, url, **kwargs)
 
             return response
