@@ -29,6 +29,14 @@ def format_time_remaining(seconds):
     else:
         return f"{int(secs)}秒"
 
+def clear_session_from_browser():
+    """从浏览器清除AutoLoginSession对象"""
+    try:
+        streamlit_js_eval.set_cookie("brain_lit_session", "", -1)  # 删除cookie
+        logger.info("已从浏览器cookie清除AutoLoginSession")
+    except Exception as e:
+        logger.error(f"从浏览器清除AutoLoginSession时出错: {e}")
+
 def render_main_page():
     """显示主页面"""
     # 记录调试信息到日志
@@ -77,12 +85,8 @@ def render_main_page():
                 del st.session_state.saved_password
             if 'login_time' in st.session_state:
                 del st.session_state.login_time
-            # 同时清除浏览器存储的凭据
-            try:
-                streamlit_js_eval.set_cookie("brain_lit_credentials", "", -1)  # 删除cookie
-                logger.info("已从浏览器cookie清除凭据")
-            except Exception as e:
-                logger.error(f"从浏览器清除凭据时出错: {e}")
+            # 清除浏览器存储的session
+            clear_session_from_browser()
             st.success("已退出登录")
             time.sleep(1)
             st.rerun()

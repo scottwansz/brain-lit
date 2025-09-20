@@ -4,6 +4,8 @@ import sys
 import os
 import logging
 import streamlit_js_eval
+import json
+import base64
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -25,6 +27,31 @@ def validate_credentials(username, password):
         logger.error(f"登录验证失败: {e}")
         return False, None
 
+def save_session_to_browser():
+    """将AutoLoginSession对象保存到浏览器"""
+    try:
+        session = st.session_state.global_session
+        if session.username and session.password:
+            credentials = {
+                'username': session.username,
+                'password': base64.b64encode(session.password.encode()).decode(),
+                'user_id': session.user_id,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            credentials_json = json.dumps(credentials)
+            streamlit_js_eval.set_cookie("brain_lit_session", credentials_json, 30)  # 30天有效期
+            logger.info("AutoLoginSession已保存到浏览器cookie")
+    except Exception as e:
+        logger.error(f"保存AutoLoginSession到浏览器时出错: {e}")
+
+def clear_session_from_browser():
+    """从浏览器清除AutoLoginSession对象"""
+    try:
+        streamlit_js_eval.set_cookie("brain_lit_session", "", -1)  # 删除cookie
+        logger.info("已从浏览器cookie清除AutoLoginSession")
+    except Exception as e:
+        logger.error(f"从浏览器清除AutoLoginSession时出错: {e}")
+
 def render_login_page():
     """显示登录页面"""
     st.title("🧠 Brain-Lit 登录")
@@ -33,17 +60,14 @@ def render_login_page():
     # 记录调试信息到日志
     logger.info("当前会话状态:")
     logger.info(f"- logged_in: {st.session_state.get('logged_in', 'Not set')}")
-    logger.info(f"- saved_username: {st.session_state.get('saved_username', 'Not set')}")
-    logger.info(f"- saved_password是否存在: {bool(st.session_state.get('saved_password', ''))}")
-    
-    # 从st.session_state中获取保存的用户名和密码
-    saved_username = st.session_state.get('saved_username', '')
-    saved_password = st.session_state.get('saved_password', '')
     
     # 登录表单
     with st.form("login_form"):
-        username = st.text_input("用户名", value=saved_username)
-        password = st.text_input("密码", type="password", value=saved_password)
+        username = st.text_input("用户名")
+        password = st.text_input("密码", type="password")
+        # 从session state获取已保存的用户名和密码状态来决定"记住我"的默认值
+        saved_username = st.session_state.get('saved_username')
+        saved_password = st.session_state.get('saved_password')
         remember_me = st.checkbox("记住我", value=bool(saved_username and saved_password))
         
         submitted = st.form_submit_button("登录")
@@ -63,38 +87,14 @@ def render_login_page():
                     # 保存登录时间
                     st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    # 如果用户选择了"记住我"，则保存凭据到浏览器
+                    # 如果用户选择了"记住我"，则保存session到浏览器
                     if remember_me:
-                        logger.info(f"保存凭据，用户名={username}")
-                        st.session_state.saved_username = username
-                        st.session_state.saved_password = password
-                        # 保存到浏览器cookie
-                        try:
-                            import json
-                            import base64
-                            credentials = {
-                                'username': username,
-                                'password': base64.b64encode(password.encode()).decode(),
-                                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
-                            }
-                            credentials_json = json.dumps(credentials)
-                            streamlit_js_eval.set_cookie("brain_lit_credentials", credentials_json, 30)  # 30天有效期
-                            logger.info("凭据已保存到浏览器cookie")
-                        except Exception as e:
-                            logger.error(f"保存凭据到浏览器时出错: {e}")
+                        logger.info(f"保存AutoLoginSession到浏览器")
+                        save_session_to_browser()
                     else:
-                        # 如果未选择记住我，则清除已保存的凭据
-                        logger.info("未选择记住我，清除已保存的凭据")
-                        if 'saved_username' in st.session_state:
-                            del st.session_state.saved_username
-                        if 'saved_password' in st.session_state:
-                            del st.session_state.saved_password
-                        # 同时清除浏览器存储的凭据
-                        try:
-                            streamlit_js_eval.set_cookie("brain_lit_credentials", "", -1)  # 删除cookie
-                            logger.info("已从浏览器cookie清除凭据")
-                        except Exception as e:
-                            logger.error(f"从浏览器清除凭据时出错: {e}")
+                        # 如果未选择记住我，则清除已保存的session
+                        logger.info("未选择记住我，清除已保存的session")
+                        clear_session_from_browser()
                     
                     # 重新运行应用以显示主页面
                     st.rerun()
@@ -104,4 +104,4 @@ def render_login_page():
                 st.warning("请输入用户名和密码")
 
     # 添加说明信息
-    st.info("提示：选择'记住我'可以在下次访问时自动填充用户名和密码")
+    st.info("提示：选择'记住我'可以在下次访问时自动登录")
