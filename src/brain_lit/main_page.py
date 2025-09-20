@@ -6,7 +6,6 @@ import os
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from auth import AutoLoginSession
 
 def format_time_remaining(seconds):
     """格式化剩余时间显示"""
@@ -26,8 +25,8 @@ def format_time_remaining(seconds):
 
 def render_main_page():
     """显示主页面"""
-    # 创建会话对象以获取登录信息
-    session = AutoLoginSession()
+    # 使用全局会话对象以获取登录信息
+    session = st.session_state.global_session
     time_until_expiry = session.get_time_until_expiry()
     formatted_time = format_time_remaining(time_until_expiry)
     
@@ -38,7 +37,8 @@ def render_main_page():
         st.markdown("### 用户信息")
         st.markdown(f"**用户名:** {st.session_state.username}")
         st.markdown(f"**用户ID:** {st.session_state.get('user_id', 'Unknown')}")
-        st.markdown(f"**登录时间:** {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        # 使用存储在会话状态中的实际登录时间
+        st.markdown(f"**登录时间:** {st.session_state.get('login_time', 'Unknown')}")
         
         st.markdown("---")
         st.markdown("### 登录状态")
@@ -50,9 +50,12 @@ def render_main_page():
         
         st.markdown("---")
         if st.button("退出登录"):
+            # 调用session的logout方法
+            session.logout()
             st.session_state.logged_in = False
             st.session_state.username = ""
             st.session_state.user_id = ""
+            st.session_state.login_time = ""
             st.success("已退出登录")
             time.sleep(1)
             st.rerun()

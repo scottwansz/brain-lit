@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from login_page import render_login_page
 from main_page import render_main_page
+from brain_lit.svc.auth import AutoLoginSession
 
 # 设置页面配置
 st.set_page_config(
@@ -21,6 +22,10 @@ if 'logged_in' not in st.session_state:
     
 if 'username' not in st.session_state:
     st.session_state.username = ""
+
+# 创建全局AutoLoginSession实例
+if 'global_session' not in st.session_state:
+    st.session_state.global_session = AutoLoginSession()
 
 def main():
     """主应用函数"""

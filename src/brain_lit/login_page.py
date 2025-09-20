@@ -6,15 +6,14 @@ import os
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from auth import AutoLoginSession
 
 def validate_credentials(username, password):
     """验证用户凭据（通过实际API调用）"""
     try:
-        session = AutoLoginSession()
+        # 使用全局session实例
+        session = st.session_state.global_session
         session.login_with_credentials(username, password)
         user_id = session.user_id
-        session.close()
         return True, user_id
     except Exception as e:
         print(f"登录验证失败: {e}")
@@ -47,6 +46,8 @@ def render_login_page():
                     st.session_state.logged_in = True
                     st.session_state.username = username
                     st.session_state.user_id = user_id
+                    # 保存登录时间
+                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
                     
                     # 如果用户选择记住凭据，则保存到会话状态
                     if remember_me:
