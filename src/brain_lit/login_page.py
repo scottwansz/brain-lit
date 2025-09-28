@@ -36,6 +36,7 @@ def save_session_to_browser():
                 'username': session.username,
                 'password': base64.b64encode(session.password.encode()).decode(),
                 'user_id': session.user_id,
+                'last_login_time': session.last_login_time,
                 'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
             }
             credentials_json = json.dumps(credentials)
@@ -85,7 +86,8 @@ def render_login_page():
                     st.session_state.username = username
                     st.session_state.user_id = user_id
                     # 保存登录时间
-                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
+                    session = st.session_state.global_session
+                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.last_login_time))
                     
                     # 如果用户选择了"记住我"，则保存session到浏览器
                     if remember_me:

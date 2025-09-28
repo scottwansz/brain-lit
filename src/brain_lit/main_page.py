@@ -54,6 +54,7 @@ def render_main_page():
         # 如果用户未登录，不应该显示主页面
         from brain_lit.login_page import render_login_page
         render_login_page()
+        st.stop()  # 添加这行确保立即停止执行并跳转
         return
     
     # 渲染共享的侧边栏

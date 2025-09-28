@@ -42,6 +42,10 @@ def _handle_logout():
         st.session_state.username = ""
         st.session_state.user_id = ""
         
+        # 清除AutoLoginSession对象中的用户名和密码
+        session.username = None
+        session.password = None
+        
         # 清除保存的凭据
         keys_to_remove = ['saved_username', 'saved_password', 'login_time', 'current_page', 'pending_alpha']
         for key in keys_to_remove:
@@ -58,6 +62,7 @@ def _handle_logout():
             
         st.success("已退出登录")
         st.switch_page("app.py")
+        st.stop()  # 添加这行确保立即停止执行并跳转
     except Exception as e:
         logger.error(f"退出登录时发生错误: {e}")
         st.error("退出登录时发生错误，请重新尝试")

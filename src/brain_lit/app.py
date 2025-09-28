@@ -47,6 +47,7 @@ def save_session_to_browser():
                 'username': session.username,
                 'password': base64.b64encode(session.password.encode()).decode(),
                 'user_id': session.user_id,
+                'last_login_time': session.last_login_time,
                 'timestamp': datetime.now().isoformat()
             }
             credentials_json = json.dumps(credentials)
@@ -70,14 +71,15 @@ def load_session_from_browser():
             username = credentials.get('username', '')
             password_encoded = credentials.get('password', '')
             user_id = credentials.get('user_id', '')
+            last_login_time = credentials.get('last_login_time', 0)
             if username and password_encoded:
                 password = base64.b64decode(password_encoded.encode()).decode()
                 logger.info(f"从浏览器cookie加载AutoLoginSession: {username}")
-                return username, password, user_id
-        return None, None, None
+                return username, password, user_id, last_login_time
+        return None, None, None, 0
     except Exception as e:
         logger.error(f"从浏览器加载AutoLoginSession时出错: {e}")
-        return None, None, None
+        return None, None, None, 0
 
 def clear_session_from_browser():
     """从浏览器localStorage清除AutoLoginSession对象"""
@@ -107,16 +109,19 @@ def try_auto_login():
                 st.session_state.logged_in = True
                 st.session_state.username = session.username
                 st.session_state.user_id = session.user_id
-                # 如果登录时间不存在，则设置当前时间
+                # 如果登录时间不存在，则根据last_login_time设置或使用当前时间
                 if 'login_time' not in st.session_state:
-                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
+                    if session.last_login_time:
+                        st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.last_login_time))
+                    else:
+                        st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
                 logger.info(f"通过AutoLoginSession自动登录成功，用户ID: {session.user_id}")
                 return True
         except Exception as e:
             logger.error(f"通过AutoLoginSession自动登录失败: {e}")
     
     # 如果AutoLoginSession中没有凭据或登录失败，尝试从浏览器存储加载
-    saved_username, saved_password, saved_user_id = load_session_from_browser()
+    saved_username, saved_password, saved_user_id, saved_last_login_time = load_session_from_browser()
 
     logger.info(f"保存的用户名={saved_username}, 保存的密码是否存在={bool(saved_password)}, 保存的用户ID={saved_user_id}")
     
@@ -130,12 +135,16 @@ def try_auto_login():
                 session.username = saved_username
                 session.password = saved_password
                 session.user_id = saved_user_id
+                session.last_login_time = saved_last_login_time
                 st.session_state.logged_in = True
                 st.session_state.username = saved_username
                 st.session_state.user_id = saved_user_id
-                # 如果登录时间不存在，则设置当前时间
+                # 如果登录时间不存在，则根据last_login_time设置或使用当前时间
                 if 'login_time' not in st.session_state:
-                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
+                    if saved_last_login_time:
+                        st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(saved_last_login_time))
+                    else:
+                        st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
                 logger.info(f"从浏览器恢复会话成功，用户ID: {session.user_id}")
                 return True
             else:
@@ -144,9 +153,9 @@ def try_auto_login():
                 st.session_state.logged_in = True
                 st.session_state.username = saved_username
                 st.session_state.user_id = session.user_id
-                # 如果登录时间不存在，则设置当前时间
+                # 如果登录时间不存在，则根据last_login_time设置或使用当前时间
                 if 'login_time' not in st.session_state:
-                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S')
+                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.last_login_time))
                 logger.info("自动登录成功")
                 return True
         except Exception as e:
@@ -170,6 +179,7 @@ def main():
 
     if not st.session_state.logged_in:
         render_login_page()
+        st.stop()  # 添加这行确保立即停止执行并跳转
     else:
         render_main_page()
 
