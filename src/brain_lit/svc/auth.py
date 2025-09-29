@@ -42,12 +42,6 @@ class AutoLoginSession:
         if not self.username or not self.password:
             logger.error("无用户名和密码信息")
             raise ValueError("无用户名和密码信息")
-            # load_dotenv()
-            # self.username = os.getenv('BRAIN_USERNAME')
-            # self.password = os.getenv('BRAIN_PASSWORD')
-            # if not self.username or not self.password:
-            #     logger.error("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
-            #     raise ValueError("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
 
         # 创建新会话
         self._session = requests.Session()
