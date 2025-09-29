@@ -12,15 +12,18 @@ logger = setup_logger()
 class AutoLoginSession:
     """自动登录会话，在会话失效时自动重新登录"""
 
-    def __init__(self):
+    def __init__(self, username: str = None, password: str = None):
         self._session = None
         self.last_login_time = 0
         self.login_refresh_interval = 3600 * 12  # 12小时刷新一次登录
         self.retry_count = 0
         self.max_retries = 3  # 最大重试次数
         self.user_id: Optional[str] = None
-        self.username: Optional[str] = None
-        self.password: Optional[str] = None  # 添加密码存储字段
+        self.username: Optional[str] = username
+        self.password: Optional[str] = password  # 添加密码存储字段
+
+        if self.username and self.password:
+            self.login()
 
     def login_with_credentials(self, username: str, password: str):
         """使用提供的用户名和密码执行登录操作"""
@@ -108,6 +111,7 @@ class AutoLoginSession:
             print(f"连接失败，重试登录 ({self.retry_count}/{self.max_retries})")
             self.login()
             return self._session.request(method, url, **kwargs)
+
     def logout(self):
         """退出登录"""
         if self._session:

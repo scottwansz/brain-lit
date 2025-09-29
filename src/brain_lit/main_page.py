@@ -50,12 +50,12 @@ def render_main_page():
     # logger.info(f"- login_time: {st.session_state.get('login_time', 'Not set')}")
     
     # 检查用户是否仍然登录
-    if not st.session_state.get('logged_in', False):
-        # 如果用户未登录，不应该显示主页面
-        from brain_lit.login_page import render_login_page
-        render_login_page()
-        st.stop()  # 添加这行确保立即停止执行并跳转
-        return
+    # if not st.session_state.get('logged_in', False):
+    #     # 如果用户未登录，不应该显示主页面
+    #     from brain_lit.login_page import render_login_page
+    #     render_login_page()
+    #     st.stop()  # 添加这行确保立即停止执行并跳转
+    #     return
     
     # 渲染共享的侧边栏
     render_sidebar()
@@ -88,6 +88,6 @@ def render_main_page():
     st.markdown("### 当前登录状态")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("用户ID", st.session_state.get('user_id', 'Unknown'))
+        st.metric("用户ID", session.user_id)
     with col2:
         st.metric("登录剩余时间", formatted_time)

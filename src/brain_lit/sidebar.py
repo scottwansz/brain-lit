@@ -1,5 +1,7 @@
+import datetime
+
 import streamlit as st
-import logging
+
 from brain_lit.logger import setup_logger
 
 # 设置logger
@@ -7,14 +9,10 @@ logger = setup_logger()
 
 def render_sidebar():
     """渲染共享的侧边栏"""
-    # 检查用户是否仍然登录
-    if not st.session_state.get('logged_in', False):
-        st.switch_page("app.py")
-        return
     
     with st.sidebar:
-        st.title(f"欢迎, {st.session_state.get('user_id', 'Unknown')}!")
-        st.markdown(f"**登录时间:** {st.session_state.get('login_time', 'Unknown')}")
+        st.title(f"欢迎, {st.session_state.global_session.user_id}!")
+        st.markdown(f"**登录时间:** {datetime.datetime.fromtimestamp(st.session_state.global_session.last_login_time)}")
         st.markdown("---")
         st.markdown("### 页面导航")
         if st.button("🏠 主页"):
@@ -37,21 +35,6 @@ def _handle_logout():
         session = st.session_state.global_session
         session.logout()
         
-        # 清除会话状态
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.session_state.user_id = ""
-        
-        # 清除AutoLoginSession对象中的用户名和密码
-        session.username = None
-        session.password = None
-        
-        # 清除保存的凭据
-        keys_to_remove = ['saved_username', 'saved_password', 'login_time', 'current_page', 'pending_alpha']
-        for key in keys_to_remove:
-            if key in st.session_state:
-                del st.session_state[key]
-        
         # 清除浏览器存储的session
         try:
             import streamlit_js_eval
@@ -62,7 +45,7 @@ def _handle_logout():
             
         st.success("已退出登录")
         st.switch_page("app.py")
-        st.stop()  # 添加这行确保立即停止执行并跳转
+        # st.stop()  # 添加这行确保立即停止执行并跳转
     except Exception as e:
         logger.error(f"退出登录时发生错误: {e}")
         st.error("退出登录时发生错误，请重新尝试")

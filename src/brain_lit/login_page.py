@@ -1,11 +1,11 @@
-import streamlit as st
-import time
-import sys
-import os
-import logging
-import streamlit_js_eval
-import json
 import base64
+import json
+import os
+import sys
+import time
+
+import streamlit as st
+import streamlit_js_eval
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -58,18 +58,11 @@ def render_login_page():
     st.title("🧠 Brain-Lit 登录")
     st.markdown("请登录以访问应用程序")
     
-    # 记录调试信息到日志
-    logger.info("当前会话状态:")
-    logger.info(f"- logged_in: {st.session_state.get('logged_in', 'Not set')}")
-    
     # 登录表单
     with st.form("login_form"):
         username = st.text_input("用户名")
         password = st.text_input("密码", type="password")
-        # 从session state获取已保存的用户名和密码状态来决定"记住我"的默认值
-        saved_username = st.session_state.get('saved_username')
-        saved_password = st.session_state.get('saved_password')
-        remember_me = st.checkbox("记住我", value=bool(saved_username and saved_password))
+        remember_me = st.checkbox("记住我", value=True)
         
         submitted = st.form_submit_button("登录")
         
@@ -82,12 +75,6 @@ def render_login_page():
                 
                 if is_valid:
                     logger.info(f"登录验证成功，用户ID={user_id}")
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.session_state.user_id = user_id
-                    # 保存登录时间
-                    session = st.session_state.global_session
-                    st.session_state.login_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.last_login_time))
                     
                     # 如果用户选择了"记住我"，则保存session到浏览器
                     if remember_me:
