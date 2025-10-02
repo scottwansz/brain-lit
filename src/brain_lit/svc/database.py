@@ -60,17 +60,3 @@ def get_used_datasets(region: str, universe: str, delay: int) -> Set[str]:
     except Exception as e:
         print(f"查询已使用的数据集时出错: {e}")
         return set()
-
-
-def is_dataset_used(dataset_id: str, used_datasets: Set[str]) -> bool:
-    """
-    检查特定数据集是否已被使用
-    
-    Args:
-        dataset_id: 数据集ID
-        used_datasets: 已使用的数据集ID集合
-        
-    Returns:
-        如果数据集已被使用返回True，否则返回False
-    """
-    return dataset_id in used_datasets

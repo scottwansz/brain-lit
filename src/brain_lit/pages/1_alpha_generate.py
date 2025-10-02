@@ -1,14 +1,15 @@
-import streamlit as st
-import sys
 import os
+import sys
+
+import streamlit as st
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.dataset import get_dataset_list, get_all_datasets
-from brain_lit.svc.database import is_dataset_used, get_used_datasets
+from brain_lit.svc.dataset import get_all_datasets
+from brain_lit.svc.database import get_used_datasets
 
 # 设置logger
 logger = setup_logger()
@@ -108,10 +109,9 @@ if datasets:
     if show_only_unused:
         filtered_datasets = [
             dataset for dataset in datasets 
-            if not is_dataset_used(
-                dataset.get("id", "") if isinstance(dataset, dict) else dataset, 
-                used_datasets
-            )
+            if not (
+                dataset.get("id", "") if isinstance(dataset, dict) else dataset
+            ) in used_datasets
         ]
     else:
         filtered_datasets = datasets
@@ -190,7 +190,7 @@ if datasets:
             dataset_id = dataset_dict.get("id", "")
             
         # 检查数据集是否已被使用
-        used = is_dataset_used(dataset_id, used_datasets)
+        used = dataset_id in used_datasets
         
         # 处理themes字段，显示multiplier值而不是name值
         themes_multiplier = ""
