@@ -28,60 +28,7 @@ alpha_expression = st.text_area(
     placeholder="# 示例Alpha表达式\n# rank(correlation(close, returns, 5))"
 )
 
-# 定义地区、延迟和股票池的映射关系
-REGION_PARAMS = {
-    "USA": {
-        "delay": [1, 0],
-        "universe": ["TOP3000", "TOP1000", "TOP500", "TOP200", "ILLIQUID_MINVOL1M", "TPSP500"]
-    },
-    "GLB": {
-        "delay": [1],
-        "universe": ["TOP3000", "MINVOL1M"]
-    },
-    "EUR": {
-        "delay": [1, 0],
-        "universe": ["TOP2500","TOP1200", "TOP800", "TOP400", "ILLIQUID_MINVOL1M"]
-    },
-    "ASI": {
-        "delay": [1],
-        "universe": ["MINVOL1M", "ILLIDQUID_MINVOL1M"]
-    },
-    "CHN": {
-        "delay": [1, 0],
-        "universe": ["TOP2000U"]
-    }
-}
-
-# 定义可用的分类列表
-CATEGORIES = [
-    ('All', ''),
-    ('Analyst', 'analyst'),
-    ('Earnings', 'earnings'),
-    ('Fundamental', 'fundamental'),
-    ('Imbalance', 'imbalance'),
-    ('Insiders', 'insiders'),
-    ('Institutions', 'institutions'),
-    ('Macro', 'macro'),
-    ('Model', 'model'),
-    ('News', 'news'),
-    ('Option', 'option'),
-    ('Other', 'other'),
-    ('Price Volume', 'pv'),
-    ('Risk', 'risk'),
-    ('Sentiment', 'sentiment'),
-    ('Short Interest', 'shortinterest'),
-    ('Social Media', 'socialmedia')
-]
-
 # 初始化session state中的参数
-if "selected_region" not in st.session_state:
-    st.session_state.selected_region = "USA"
-if "selected_universe" not in st.session_state:
-    st.session_state.selected_universe = REGION_PARAMS["USA"]["universe"][0]
-if "selected_delay" not in st.session_state:
-    st.session_state.selected_delay = REGION_PARAMS["USA"]["delay"][0]
-if "selected_category" not in st.session_state:
-    st.session_state.selected_category = ""
 if "current_page" not in st.session_state:
     st.session_state.current_page = 1
 
@@ -91,48 +38,19 @@ col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     start_date = st.date_input("开始日期", value=None)
-    selected_region = st.selectbox("地区", list(REGION_PARAMS.keys()), 
-                                   index=list(REGION_PARAMS.keys()).index(st.session_state.selected_region),
-                                   key="region_select")
-    # 更新session state
-    st.session_state.selected_region = selected_region
 
 with col2:
     end_date = st.date_input("结束日期", value=None)
-    # 根据选择的地区动态更新股票池选项
-    universe_options = REGION_PARAMS[selected_region]["universe"]
-    # 确保默认值在选项列表中
-    default_universe_index = 0
-    if st.session_state.selected_universe in universe_options:
-        default_universe_index = universe_options.index(st.session_state.selected_universe)
-    selected_universe = st.selectbox("股票池", universe_options,
-                                     index=default_universe_index,
-                                     key="universe_select")
-    # 更新session state
-    st.session_state.selected_universe = selected_universe
 
 with col3:
     decay = st.number_input("衰减天数", min_value=1, max_value=30, value=5)
-    # 根据选择的地区动态更新延迟天数选项
-    delay_options = REGION_PARAMS[selected_region]["delay"]
-    # 确保默认值在选项列表中
-    default_delay_index = 0
-    if st.session_state.selected_delay in delay_options:
-        default_delay_index = delay_options.index(st.session_state.selected_delay)
-    selected_delay = st.selectbox("延迟天数", delay_options,
-                                  index=default_delay_index,
-                                  key="delay_select")
-    # 更新session state
-    st.session_state.selected_delay = selected_delay
 
 with col4:
-    # 分类选择
-    category_options = [cat[0] for cat in CATEGORIES]
-    category_values = [cat[1] for cat in CATEGORIES]
-    current_category_index = category_values.index(st.session_state.selected_category) if st.session_state.selected_category in category_values else 0
-    selected_category_name = st.selectbox("分类", category_options, index=current_category_index)
-    selected_category = CATEGORIES[category_options.index(selected_category_name)][1]
-    st.session_state.selected_category = selected_category
+    # 从session state获取已选择的参数
+    selected_region = st.session_state.selected_region
+    selected_universe = st.session_state.selected_universe
+    selected_delay = st.session_state.selected_delay
+    selected_category = st.session_state.selected_category
 
 # 数据集选择部分
 st.subheader("数据集选择")
@@ -224,7 +142,7 @@ if datasets:
         
         # 数据列
         cols[1].write(dataset_id)
-        cols[2].write(f"{dataset.get('category', {}).get('name', '')} > {dataset.get('subcategory', {}).get('name', '')}")
+        cols[2].write(f"{dataset.get('category', {}).get('name', '')}")
         cols[3].write(f"{dataset.get('coverage', 0):.2%}")
         cols[4].write(dataset.get("valueScore", 0))
         cols[5].write(dataset.get("userCount", 0))

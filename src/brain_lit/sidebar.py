@@ -7,12 +7,62 @@ from brain_lit.logger import setup_logger
 # 设置logger
 logger = setup_logger()
 
+# 定义地区、延迟和股票池的映射关系
+REGION_PARAMS = {
+    "USA": {
+        "delay": [1, 0],
+        "universe": ["TOP3000", "TOP1000", "TOP500", "TOP200", "ILLIQUID_MINVOL1M", "TPSP500"]
+    },
+    "GLB": {
+        "delay": [1],
+        "universe": ["TOP3000", "MINVOL1M"]
+    },
+    "EUR": {
+        "delay": [1, 0],
+        "universe": ["TOP2500","TOP1200", "TOP800", "TOP400", "ILLIQUID_MINVOL1M"]
+    },
+    "ASI": {
+        "delay": [1],
+        "universe": ["MINVOL1M", "ILLIDQUID_MINVOL1M"]
+    },
+    "CHN": {
+        "delay": [1, 0],
+        "universe": ["TOP2000U"]
+    }
+}
+
+# 定义可用的分类列表
+CATEGORIES = [
+    ('All', ''),
+    ('Analyst', 'analyst'),
+    ('Earnings', 'earnings'),
+    ('Fundamental', 'fundamental'),
+    ('Imbalance', 'imbalance'),
+    ('Insiders', 'insiders'),
+    ('Institutions', 'institutions'),
+    ('Macro', 'macro'),
+    ('Model', 'model'),
+    ('News', 'news'),
+    ('Option', 'option'),
+    ('Other', 'other'),
+    ('Price Volume', 'pv'),
+    ('Risk', 'risk'),
+    ('Sentiment', 'sentiment'),
+    ('Short Interest', 'shortinterest'),
+    ('Social Media', 'socialmedia')
+]
+
 def render_sidebar():
     """渲染共享的侧边栏"""
     
     with st.sidebar:
         st.title(f"欢迎, {st.session_state.global_session.user_id}!")
         st.markdown(f"**登录时间:** {datetime.datetime.fromtimestamp(st.session_state.global_session.last_login_time)}")
+        st.markdown("---")
+        
+        # 添加数据集参数选择
+        _render_common_parameters()
+        
         st.markdown("---")
         st.markdown("### 页面导航")
         if st.button("🏠 主页"):
@@ -27,6 +77,70 @@ def render_sidebar():
         st.markdown("---")
         if st.button("🚪 退出登录"):
             _handle_logout()
+            
+def _render_common_parameters():
+    """渲染公共参数选择区域"""
+    st.markdown("### 数据参数")
+    
+    # 初始化session state中的参数
+    if "selected_region" not in st.session_state:
+        st.session_state.selected_region = "USA"
+    if "selected_universe" not in st.session_state:
+        st.session_state.selected_universe = REGION_PARAMS["USA"]["universe"][0]
+    if "selected_delay" not in st.session_state:
+        st.session_state.selected_delay = REGION_PARAMS["USA"]["delay"][0]
+    if "selected_category" not in st.session_state:
+        st.session_state.selected_category = ""
+    
+    # 地区选择
+    selected_region = st.selectbox(
+        "地区", 
+        list(REGION_PARAMS.keys()), 
+        index=list(REGION_PARAMS.keys()).index(st.session_state.selected_region),
+        key="sidebar_region_select"
+    )
+    st.session_state.selected_region = selected_region
+
+    # 根据选择的地区动态更新股票池选项
+    universe_options = REGION_PARAMS[selected_region]["universe"]
+    # 确保默认值在选项列表中
+    default_universe_index = 0
+    if st.session_state.selected_universe in universe_options:
+        default_universe_index = universe_options.index(st.session_state.selected_universe)
+    selected_universe = st.selectbox(
+        "股票池", 
+        universe_options,
+        index=default_universe_index,
+        key="sidebar_universe_select"
+    )
+    st.session_state.selected_universe = selected_universe
+
+    # 根据选择的地区动态更新延迟天数选项
+    delay_options = REGION_PARAMS[selected_region]["delay"]
+    # 确保默认值在选项列表中
+    default_delay_index = 0
+    if st.session_state.selected_delay in delay_options:
+        default_delay_index = delay_options.index(st.session_state.selected_delay)
+    selected_delay = st.selectbox(
+        "延迟天数", 
+        delay_options,
+        index=default_delay_index,
+        key="sidebar_delay_select"
+    )
+    st.session_state.selected_delay = selected_delay
+
+    # 分类选择
+    category_options = [cat[0] for cat in CATEGORIES]
+    category_values = [cat[1] for cat in CATEGORIES]
+    current_category_index = category_values.index(st.session_state.selected_category) if st.session_state.selected_category in category_values else 0
+    selected_category_name = st.selectbox(
+        "分类", 
+        category_options, 
+        index=current_category_index,
+        key="sidebar_category_select"
+    )
+    selected_category = CATEGORIES[category_options.index(selected_category_name)][1]
+    st.session_state.selected_category = selected_category
         
 def _handle_logout():
     """处理退出登录逻辑"""
