@@ -20,37 +20,15 @@ st.title("📈 生成Alpha")
 # 主要内容区域
 st.markdown("在本页面您可以生成新的Alpha表达式。")
 
-# Alpha表达式输入区域
-st.subheader("Alpha表达式")
-alpha_expression = st.text_area(
-    "请输入您的Alpha表达式:",
-    height=200,
-    placeholder="# 示例Alpha表达式\n# rank(correlation(close, returns, 5))"
-)
-
 # 初始化session state中的参数
 if "current_page" not in st.session_state:
     st.session_state.current_page = 1
 
-# 参数设置
-st.subheader("参数设置")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    start_date = st.date_input("开始日期", value=None)
-
-with col2:
-    end_date = st.date_input("结束日期", value=None)
-
-with col3:
-    decay = st.number_input("衰减天数", min_value=1, max_value=30, value=5)
-
-with col4:
-    # 从session state获取已选择的参数
-    selected_region = st.session_state.selected_region
-    selected_universe = st.session_state.selected_universe
-    selected_delay = st.session_state.selected_delay
-    selected_category = st.session_state.selected_category
+# 从session state获取已选择的参数
+selected_region = st.session_state.selected_region
+selected_universe = st.session_state.selected_universe
+selected_delay = st.session_state.selected_delay
+selected_category = st.session_state.selected_category
 
 # 数据集选择部分
 st.subheader("数据集选择")
@@ -97,8 +75,6 @@ total_count = dataset_response.get("count", 0)
 
 # 显示数据集选择
 if datasets:
-    st.write(f"共找到 {total_count} 个数据集")
-    
     # 计算总页数
     page_size = 10
     total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
@@ -109,21 +85,36 @@ if datasets:
     if st.session_state.current_page < 1:
         st.session_state.current_page = 1
     
+    # 在同一行显示数据集总数和分页控件
+    count_col, _, prev_col, info_col, next_col = st.columns([3, 1, 1, 2, 1])
+    with count_col:
+        st.write(f"共找到 {total_count} 个数据集")
+    with prev_col:
+        if st.button("上一页", disabled=(st.session_state.current_page <= 1)):
+            st.session_state.current_page -= 1
+            st.rerun()
+    with info_col:
+        st.write(f"第 {st.session_state.current_page} 页，共 {total_pages} 页")
+    with next_col:
+        if st.button("下一页", disabled=(st.session_state.current_page >= total_pages)):
+            st.session_state.current_page += 1
+            st.rerun()
+    
     # 显示表格形式的数据集
     # 创建表格标题行
-    header_cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 2])
-    headers = ["选择", "ID", "分类", "覆盖率", "价值评分", "用户数", "Alpha数", "字段数", "金字塔乘数", "主题"]
+    header_cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 1])
+    headers = ["选择", "ID", "分类", "主题乘数", "覆盖率", "价值评分", "用户数", "Alpha数", "字段数", "金字塔乘数"]
     
     for col, header in zip(header_cols, headers):
         col.write(f"**{header}**")
     
     # 显示数据行
     for dataset in datasets:
-        # 处理themes字段，将其转换为字符串
-        themes_str = ", ".join([theme.get("name", "") for theme in dataset.get("themes", [])]) if dataset.get("themes") else ""
+        # 处理themes字段，显示multiplier值而不是name值
+        themes_multiplier = ", ".join([str(theme.get("multiplier", "")) for theme in dataset.get("themes", [])]) if dataset.get("themes") else ""
         
         # 创建数据行
-        cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 2])
+        cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 1])
         
         # 复选框
         with cols[0]:
@@ -143,46 +134,41 @@ if datasets:
         # 数据列
         cols[1].write(dataset_id)
         cols[2].write(f"{dataset.get('category', {}).get('name', '')}")
-        cols[3].write(f"{dataset.get('coverage', 0):.2%}")
-        cols[4].write(dataset.get("valueScore", 0))
-        cols[5].write(dataset.get("userCount", 0))
-        cols[6].write(dataset.get("alphaCount", 0))
-        cols[7].write(dataset.get("fieldCount", 0))
-        cols[8].write(dataset.get("pyramidMultiplier", 0))
-        cols[9].write(themes_str)
+        cols[3].write(themes_multiplier)
+        cols[4].write(f"{dataset.get('coverage', 0):.2%}")
+        cols[5].write(dataset.get("valueScore", 0))
+        cols[6].write(dataset.get("userCount", 0))
+        cols[7].write(dataset.get("alphaCount", 0))
+        cols[8].write(dataset.get("fieldCount", 0))
+        cols[9].write(dataset.get("pyramidMultiplier", ""))
                 
-    # 分页控件
-    col_prev, col_page_info, col_next = st.columns([1, 3, 1])
-    with col_prev:
-        if st.button("上一页", disabled=(st.session_state.current_page <= 1)):
-            st.session_state.current_page -= 1
-            st.rerun()
-            
-    with col_page_info:
-        st.write(f"第 {st.session_state.current_page} 页，共 {total_pages} 页")
-        
-    with col_next:
-        if st.button("下一页", disabled=(st.session_state.current_page >= total_pages)):
-            st.session_state.current_page += 1
-            st.rerun()
 else:
     st.info("当前筛选条件下没有找到数据集")
     st.session_state.current_page = 1
 
-# 其他设置
-st.subheader("其他设置")
-col4, col5 = st.columns(2)
+# Alpha表达式输入区域
+st.subheader("Alpha表达式")
+alpha_expression = st.text_area(
+    "请输入您的Alpha表达式:",
+    height=200,
+    placeholder="# 示例Alpha表达式\n# rank(correlation(close, returns, 5))"
+)
 
-with col4:
-    neutralization = st.multiselect(
+# 参数设置
+st.subheader("参数设置")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    neutralization = st.selectbox(
         "中性化选项",
-        ["SIZE", "SECTOR", "VOLATILITY", "LIQUIDITY", "MOMENTUM"],
-        default=["SIZE", "SECTOR"]
+        ["SIZE", "SECTOR", "VOLATILITY", "LIQUIDITY", "MOMENTUM"]
     )
 
-with col5:
+with col2:
+    decay = st.number_input("衰减天数", min_value=1, max_value=30, value=5)
+
+with col3:
     truncation = st.slider("截断百分比", 0.0, 10.0, 5.0, 0.1)
-    pasteurization = st.checkbox("Pasteurization", value=True)
 
 # 操作按钮
 st.markdown("---")

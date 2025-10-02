@@ -18,11 +18,11 @@ from brain_lit.logger import setup_logger
 # 设置logger
 logger = setup_logger()
 
-# 设置页面配置
+# 设置页面配置，使用宽屏布局
 st.set_page_config(
     page_title="Brain-Lit Application",
     page_icon="🧠",
-    layout="centered"
+    layout="wide"
 )
 
 def main():

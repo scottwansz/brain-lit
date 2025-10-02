@@ -40,23 +40,7 @@ def clear_session_from_browser():
 
 def render_main_page():
     """显示主页面"""
-    # 记录调试信息到日志
-    # logger.info("当前会话状态:")
-    # logger.info(f"- logged_in: {st.session_state.get('logged_in', 'Not set')}")
-    # logger.info(f"- username: {st.session_state.get('username', 'Not set')}")
-    # logger.info(f"- user_id: {st.session_state.get('user_id', 'Not set')}")
-    # logger.info(f"- saved_username: {st.session_state.get('saved_username', 'Not set')}")
-    # logger.info(f"- saved_password是否存在: {bool(st.session_state.get('saved_password', ''))}")
-    # logger.info(f"- login_time: {st.session_state.get('login_time', 'Not set')}")
-    
-    # 检查用户是否仍然登录
-    # if not st.session_state.get('logged_in', False):
-    #     # 如果用户未登录，不应该显示主页面
-    #     from brain_lit.login_page import render_login_page
-    #     render_login_page()
-    #     st.stop()  # 添加这行确保立即停止执行并跳转
-    #     return
-    
+
     # 渲染共享的侧边栏
     render_sidebar()
     
@@ -69,17 +53,9 @@ def render_main_page():
     st.title("🧠 Brain-Lit 应用")
     st.markdown("欢迎使用 Brain-Lit 应用程序！")
     
-    st.markdown("### 功能列表")
-    st.markdown("""
-    - 数据分析
-    - 可视化展示
-    - 报告生成
-    - 模型训练
-    """)
-    
     st.markdown("### Alpha工作流程")
     st.markdown("""
-    1. **生成Alpha**: 编写Alpha表达式
+    1. **生成Alpha**: 选择数据集与模板生成Alpha表达式
     2. **Simulate Alpha**: 对Alpha进行回测模拟
     3. **提交Alpha**: 提交验证后的Alpha
     """)
