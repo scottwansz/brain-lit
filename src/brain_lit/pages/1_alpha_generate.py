@@ -1,15 +1,14 @@
-import os
-import sys
-
 import streamlit as st
+import sys
+import os
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.dataset import get_all_datasets
-from brain_lit.svc.database import get_used_datasets
+from brain_lit.svc.dataset import get_dataset_list, get_all_datasets, get_used_datasets
+from brain_lit.svc.alpha_query import query_alphas_by_dataset, query_alphas_by_conditions
 
 # 设置logger
 logger = setup_logger()
@@ -36,6 +35,13 @@ if "show_only_unused" not in st.session_state:
 
 if "show_only_unused_prev" not in st.session_state:
     st.session_state.show_only_unused_prev = False
+
+# 初始化"主题乘数非空"筛选状态
+if "filter_non_empty_themes" not in st.session_state:
+    st.session_state.filter_non_empty_themes = False
+
+if "filter_non_empty_themes_prev" not in st.session_state:
+    st.session_state.filter_non_empty_themes_prev = False
 
 # 从session state获取已选择的参数
 selected_region = st.session_state.selected_region
@@ -106,15 +112,27 @@ if datasets:
     
     # 过滤已使用的数据集（如果用户选择了只显示未使用的数据集）
     show_only_unused = st.session_state.get("show_only_unused", False)
+    filter_non_empty_themes = st.session_state.get("filter_non_empty_themes", False)
+    
+    # 应用筛选条件
+    filtered_datasets = datasets
+    
+    # 过滤已使用的数据集
     if show_only_unused:
         filtered_datasets = [
-            dataset for dataset in datasets 
+            dataset for dataset in filtered_datasets 
             if not (
                 dataset.get("id", "") if isinstance(dataset, dict) else dataset
             ) in used_datasets
         ]
-    else:
-        filtered_datasets = datasets
+    
+    # 过滤主题乘数非空的数据集
+    if filter_non_empty_themes:
+        filtered_datasets = [
+            dataset for dataset in filtered_datasets
+            if isinstance(dataset, dict) and "themes" in dataset and dataset["themes"] and 
+               any(theme.get("multiplier") is not None for theme in dataset["themes"])
+        ]
     
     # 计算过滤后的数据集数量
     filtered_count = len(filtered_datasets)
@@ -135,16 +153,16 @@ if datasets:
         st.session_state.current_page = 1
     
     # 在同一行显示数据集总数、筛选选项和分页控件
-    count_col, filter_col, _, prev_col, info_col, next_col = st.columns([3, 2, 1, 1, 2, 1])
+    count_col, unused_col, theme_col, prev_col, info_col, next_col = st.columns([2, 1, 1, 1, 2, 1])
     with count_col:
         if show_only_unused:
             st.write(f"共找到 {filtered_count} 个未使用数据集（总计 {total_count} 个）")
         else:
             st.write(f"共找到 {total_count} 个数据集")
-    with filter_col:
+    with unused_col:
         # 获取当前的checkbox状态
         current_show_only_unused = st.checkbox(
-            "只显示未使用过的数据集", 
+            "未使用过",
             value=st.session_state.get("show_only_unused", False),
             key="show_only_unused_checkbox"
         )
@@ -154,6 +172,20 @@ if datasets:
         if current_show_only_unused != st.session_state.get("show_only_unused_prev", False):
             st.session_state.current_page = 1
             st.session_state.show_only_unused_prev = current_show_only_unused
+            st.rerun()
+    with theme_col:
+        # 添加"主题乘数非空"过滤选项
+        current_filter_non_empty_themes = st.checkbox(
+            "主题非空",
+            value=st.session_state.get("filter_non_empty_themes", False),
+            key="filter_non_empty_themes_checkbox"
+        )
+        # 更新session state
+        st.session_state.filter_non_empty_themes = current_filter_non_empty_themes
+        # 当筛选状态改变时重置页码
+        if current_filter_non_empty_themes != st.session_state.get("filter_non_empty_themes_prev", False):
+            st.session_state.current_page = 1
+            st.session_state.filter_non_empty_themes_prev = current_filter_non_empty_themes
             st.rerun()
     with prev_col:
         if st.button("上一页", disabled=(st.session_state.current_page <= 1)):
@@ -294,7 +326,7 @@ with col3:
 
 # 操作按钮
 st.markdown("---")
-col6, col7, col8 = st.columns([1, 1, 4])
+col6, col7, col8, col9 = st.columns([1, 1, 1, 3])
 
 with col6:
     if st.button("生成Alpha", type="primary"):
@@ -306,7 +338,83 @@ with col6:
             st.warning("请输入Alpha表达式")
 
 with col7:
+    if st.button("查询"):
+        # 获取当前选中的数据集
+        selected_datasets = []
+        for key in st.session_state:
+            if key.startswith("selected_dataset_"):
+                dataset_info = st.session_state[key]
+                if isinstance(dataset_info, dict):
+                    dataset_id = dataset_info.get("id", "")
+                else:
+                    dataset_id = dataset_info
+                selected_datasets.append(dataset_id)
+        
+        # 查询Alpha记录
+        query_results = []
+        if selected_datasets:
+            # 如果有选中的数据集，则查询这些数据集相关的Alpha记录
+            for dataset_id in selected_datasets:
+                results = query_alphas_by_dataset(
+                    selected_region, 
+                    selected_universe, 
+                    selected_delay, 
+                    dataset_id
+                )
+                query_results.extend(results)
+        else:
+            # 如果没有选中任何数据集，则根据侧边栏的查询条件查询表中的数据
+            query_results = query_alphas_by_conditions(
+                selected_region,
+                selected_universe,
+                selected_delay,
+                selected_category
+            )
+        
+        if query_results:
+            st.session_state.query_results = query_results
+            st.session_state.show_query_results = True
+            st.rerun()
+        else:
+            st.info("未找到相关的Alpha记录")
+
+with col8:
     if st.button("清空"):
+        st.rerun()
+
+# 显示查询结果
+if st.session_state.get("show_query_results", False):
+    st.subheader("查询结果")
+    query_results = st.session_state.get("query_results", [])
+    
+    if query_results:
+        st.write(f"共找到 {len(query_results)} 条记录")
+        
+        # 使用pandas展示结果
+        import pandas as pd
+        
+        # 准备数据
+        display_data = []
+        for result in query_results:
+            display_data.append({
+                "Alpha表达式": str(result.get("alpha", ""))[:50] + "..." if len(str(result.get("alpha", ""))) > 50 else str(result.get("alpha", "")),
+                "Sharp": result.get("sharp", ""),
+                "Fitness": result.get("fitness", ""),
+                "衰减": result.get("decay", ""),
+                "中性化": result.get("neutralization", ""),
+                "阶段": result.get("phase", ""),
+                "更新时间": result.get("updated_at", "") if result.get("updated_at") else result.get("created_at", "")
+            })
+        
+        # 创建DataFrame并显示
+        df = pd.DataFrame(display_data)
+        st.dataframe(df, width='stretch')
+    else:
+        st.info("未找到相关记录")
+    
+    # 添加关闭按钮
+    if st.button("关闭查询结果"):
+        st.session_state.show_query_results = False
         st.rerun()
 
 # 显示示例

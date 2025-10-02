@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from brain_lit.logger import setup_logger
 from brain_lit.svc.auth import AutoLoginSession
+from brain_lit.svc.database import get_db_connection
 
 logger = setup_logger()
 
@@ -81,6 +82,45 @@ def get_all_datasets(session: AutoLoginSession, params: dict = None):
     
     return all_datasets, total_count
 
+def get_used_datasets(region: str, universe: str, delay: int) -> set:
+    """
+    从数据库获取已使用的数据集ID集合
+    
+    Args:
+        region: 区域参数
+        universe: 范围参数
+        delay: 延迟参数
+        
+    Returns:
+        已使用的数据集ID集合
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return set()
+        
+        cursor = connection.cursor()
+        
+        # 查询已使用的数据集
+        query = """
+        SELECT dataset FROM dataset_used 
+        WHERE region = %s AND universe = %s AND delay = %s
+        """
+        cursor.execute(query, (region, universe, delay))
+        
+        # 获取结果
+        used_datasets = set()
+        for (dataset_id,) in cursor.fetchall():
+            used_datasets.add(dataset_id)
+        
+        cursor.close()
+        connection.close()
+        
+        return used_datasets
+    except Exception as e:
+        print(f"查询已使用的数据集时出错: {e}")
+        return set()
+
 if __name__ == '__main__':
 
     logger.info("开始执行...")
@@ -108,5 +148,5 @@ if __name__ == '__main__':
     ds_list = get_dataset_list(session, custom_params)
     logger.info(f"数据集列表: {ds_list}")
 
-    dataset_all = get_all_datasets(session, custom_params)
-    logger.info(f"所有数据集: {dataset_all}")
+    ds_all = get_all_datasets(session, custom_params)
+    logger.info(f"所有数据集: {ds_all}")

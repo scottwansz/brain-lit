@@ -9,6 +9,7 @@ dependencies = [
     "streamlit>=1.49.1",
     "streamlit-js-eval>=0.1.7",
     "mysql-connector-python>=9.1.0",
+    "pandas>=2.2.0",
 ]
 
 [project.scripts]
