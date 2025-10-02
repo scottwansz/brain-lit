@@ -45,9 +45,9 @@ def render_main_page():
     render_sidebar()
     
     # 使用全局会话对象以获取登录信息
-    session = st.session_state.global_session
-    time_until_expiry = session.get_time_until_expiry()
-    formatted_time = format_time_remaining(time_until_expiry)
+    # session = st.session_state.global_session
+    # time_until_expiry = session.get_time_until_expiry()
+    # formatted_time = format_time_remaining(time_until_expiry)
     
     # 主页面内容
     st.title("🧠 Brain-Lit 应用")
@@ -61,9 +61,9 @@ def render_main_page():
     """)
     
     # 显示登录状态信息
-    st.markdown("### 当前登录状态")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("用户ID", session.user_id)
-    with col2:
-        st.metric("登录剩余时间", formatted_time)
+    # st.markdown("### 当前登录状态")
+    # col1, col2 = st.columns(2)
+    # with col1:
+    #     st.metric("用户ID", session.user_id)
+    # with col2:
+    #     st.metric("登录剩余时间", formatted_time)

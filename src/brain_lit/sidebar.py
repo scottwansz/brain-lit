@@ -3,6 +3,7 @@ import datetime
 import streamlit as st
 
 from brain_lit.logger import setup_logger
+from brain_lit.svc.auth import AutoLoginSession
 
 # 设置logger
 logger = setup_logger()
@@ -54,6 +55,17 @@ CATEGORIES = [
 
 def render_sidebar():
     """渲染共享的侧边栏"""
+    # 设置页面配置，使用宽屏布局
+    st.set_page_config(
+        page_title="Brain-Lit Application",
+        page_icon="🧠",
+        layout="wide"
+    )
+
+    if 'global_session' not in st.session_state:
+        username = st.secrets["brain"]["username"]
+        password = st.secrets["brain"]["password"]
+        st.session_state.global_session = AutoLoginSession(username, password)
     
     with st.sidebar:
         st.title(f"欢迎, {st.session_state.global_session.user_id}!")
@@ -74,9 +86,9 @@ def render_sidebar():
         if st.button("📤 提交Alpha"):
             st.switch_page("pages/3_alpha_submit.py")
         
-        st.markdown("---")
-        if st.button("🚪 退出登录"):
-            _handle_logout()
+        # st.markdown("---")
+        # if st.button("🚪 退出登录"):
+        #     _handle_logout()
             
 def _render_common_parameters():
     """渲染公共参数选择区域"""

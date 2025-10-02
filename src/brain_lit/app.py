@@ -18,50 +18,44 @@ from brain_lit.logger import setup_logger
 # 设置logger
 logger = setup_logger()
 
-# 设置页面配置，使用宽屏布局
-st.set_page_config(
-    page_title="Brain-Lit Application",
-    page_icon="🧠",
-    layout="wide"
-)
-
 def main():
     """主应用函数"""
+    render_main_page()
     # logger.info("********** Before main() called，当前st.session_state内容:")
     # for key, value in st.session_state.items():
     #     logger.info(f"- {key}: {value}")
 
-    # 创建全局AutoLoginSession实例
-    if 'global_session' not in st.session_state:
-        # logger.info("get_cookie brain_lit_session")
+    # # 创建全局AutoLoginSession实例
+    # if 'global_session' not in st.session_state:
+    #     # logger.info("get_cookie brain_lit_session")
+    #
+    #     streamlit_js_eval.get_cookie("brain_lit_session")
+    #     time.sleep(0.1)
+    #
+    #     if st.session_state.getCookie_brain_lit_session:
+    #
+    #         stored_session = json.loads(st.session_state.getCookie_brain_lit_session)
+    #         logger.info('st.session_state.getCookie_brain_lit_session: %s', stored_session)
+    #
+    #         username = stored_session.get('username')
+    #         password = base64.b64decode(stored_session.get('password').encode()).decode()
+    #
+    #         st.session_state.global_session = AutoLoginSession(username, password)
+    #
+    #     else:
+    #         st.session_state.global_session = AutoLoginSession()
+    #
+    # logger.info("********** After main() called，当前st.session_state内容:")
+    # for key, value in st.session_state.items():
+    #     logger.info(f"- {key}: {value}")
 
-        streamlit_js_eval.get_cookie("brain_lit_session")
-        time.sleep(0.1)
-
-        if st.session_state.getCookie_brain_lit_session:
-
-            stored_session = json.loads(st.session_state.getCookie_brain_lit_session)
-            logger.info('st.session_state.getCookie_brain_lit_session: %s', stored_session)
-
-            username = stored_session.get('username')
-            password = base64.b64decode(stored_session.get('password').encode()).decode()
-
-            st.session_state.global_session = AutoLoginSession(username, password)
-
-        else:
-            st.session_state.global_session = AutoLoginSession()
-
-    logger.info("********** After main() called，当前st.session_state内容:")
-    for key, value in st.session_state.items():
-        logger.info(f"- {key}: {value}")
-
-    if st.session_state.global_session.user_id:
-        logger.info("render_main_page")
-        render_main_page()
-    else:
-        logger.info("render_login_page")
-        render_login_page()
-        st.stop()  # 添加这行确保立即停止执行并跳转
+    # if st.session_state.global_session.user_id:
+    #     logger.info("render_main_page")
+    #     render_main_page()
+    # else:
+    #     logger.info("render_login_page")
+    #     render_login_page()
+    #     st.stop()  # 添加这行确保立即停止执行并跳转
 
 if __name__ == "__main__":
     main()
