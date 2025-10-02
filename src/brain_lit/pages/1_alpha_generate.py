@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.dataset import get_dataset_list
+from brain_lit.svc.dataset import get_dataset_list, get_all_datasets
+from brain_lit.svc.database import is_dataset_used, get_used_datasets
 
 # 设置logger
 logger = setup_logger()
@@ -23,6 +24,17 @@ st.markdown("在本页面您可以生成新的Alpha表达式。")
 # 初始化session state中的参数
 if "current_page" not in st.session_state:
     st.session_state.current_page = 1
+
+# 初始化缓存
+if "cached_datasets" not in st.session_state:
+    st.session_state.cached_datasets = {}
+
+# 初始化筛选状态
+if "show_only_unused" not in st.session_state:
+    st.session_state.show_only_unused = False
+
+if "show_only_unused_prev" not in st.session_state:
+    st.session_state.show_only_unused_prev = False
 
 # 从session state获取已选择的参数
 selected_region = st.session_state.selected_region
@@ -43,6 +55,11 @@ params_changed = (
 
 if params_changed:
     st.session_state.current_page = 1
+    # 参数变化时清除缓存
+    cache_keys_to_remove = [key for key in st.session_state.cached_datasets.keys() 
+                           if key.startswith(f"{selected_region}_{selected_universe}_{selected_delay}")]
+    for key in cache_keys_to_remove:
+        del st.session_state.cached_datasets[key]
 
 # 保存当前参数以便下次比较
 st.session_state.prev_region = selected_region
@@ -59,25 +76,57 @@ dataset_params = {
     "universe": selected_universe,
     "delay": selected_delay,
     "instrumentType": "EQUITY",
-    "limit": 20,
-    "offset": (st.session_state.current_page - 1) * 20,
 }
 
 # 添加分类参数（如果不是"All"）
-if selected_category:
+if selected_category and selected_category != "All":
     dataset_params["category"] = selected_category
+
+# 生成缓存键
+cache_key = f"{selected_region}_{selected_universe}_{selected_delay}_{selected_category}_all"
 
 # 获取数据集列表
 with st.spinner("正在获取数据集列表..."):
-    dataset_response = get_dataset_list(session, dataset_params)
-datasets = dataset_response.get("results", [])
-total_count = dataset_response.get("count", 0)
+    # 检查是否有缓存的数据
+    if cache_key in st.session_state.cached_datasets:
+        all_datasets, total_count = st.session_state.cached_datasets[cache_key]
+    else:
+        # 获取所有数据集
+        all_datasets, total_count = get_all_datasets(session, dataset_params)
+        # 缓存数据
+        st.session_state.cached_datasets[cache_key] = (all_datasets, total_count)
+
+datasets = all_datasets
 
 # 显示数据集选择
 if datasets:
+    # 获取已使用的数据集列表（一次性获取，避免重复查询数据库）
+    used_datasets = get_used_datasets(selected_region, selected_universe, selected_delay)
+    
+    # 过滤已使用的数据集（如果用户选择了只显示未使用的数据集）
+    show_only_unused = st.session_state.get("show_only_unused", False)
+    if show_only_unused:
+        filtered_datasets = [
+            dataset for dataset in datasets 
+            if not is_dataset_used(
+                dataset.get("id", "") if isinstance(dataset, dict) else dataset, 
+                used_datasets
+            )
+        ]
+    else:
+        filtered_datasets = datasets
+    
+    # 计算过滤后的数据集数量
+    filtered_count = len(filtered_datasets)
+    
     # 计算总页数
-    page_size = 10
-    total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+    page_size = 20  # 每页显示的数据条数
+    if show_only_unused:
+        total_pages = (filtered_count + page_size - 1) // page_size if filtered_count > 0 else 1
+        display_count = filtered_count
+    else:
+        total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+        display_count = total_count
     
     # 确保当前页码在有效范围内
     if st.session_state.current_page > total_pages:
@@ -85,10 +134,27 @@ if datasets:
     if st.session_state.current_page < 1:
         st.session_state.current_page = 1
     
-    # 在同一行显示数据集总数和分页控件
-    count_col, _, prev_col, info_col, next_col = st.columns([3, 1, 1, 2, 1])
+    # 在同一行显示数据集总数、筛选选项和分页控件
+    count_col, filter_col, _, prev_col, info_col, next_col = st.columns([3, 2, 1, 1, 2, 1])
     with count_col:
-        st.write(f"共找到 {total_count} 个数据集")
+        if show_only_unused:
+            st.write(f"共找到 {filtered_count} 个未使用数据集（总计 {total_count} 个）")
+        else:
+            st.write(f"共找到 {total_count} 个数据集")
+    with filter_col:
+        # 获取当前的checkbox状态
+        current_show_only_unused = st.checkbox(
+            "只显示未使用过的数据集", 
+            value=st.session_state.get("show_only_unused", False),
+            key="show_only_unused_checkbox"
+        )
+        # 更新session state
+        st.session_state.show_only_unused = current_show_only_unused
+        # 当筛选状态改变时重置页码
+        if current_show_only_unused != st.session_state.get("show_only_unused_prev", False):
+            st.session_state.current_page = 1
+            st.session_state.show_only_unused_prev = current_show_only_unused
+            st.rerun()
     with prev_col:
         if st.button("上一页", disabled=(st.session_state.current_page <= 1)):
             st.session_state.current_page -= 1
@@ -108,17 +174,34 @@ if datasets:
     for col, header in zip(header_cols, headers):
         col.write(f"**{header}**")
     
+    # 计算当前页应该显示的数据
+    start_idx = (st.session_state.current_page - 1) * page_size
+    end_idx = min(start_idx + page_size, len(filtered_datasets))
+    page_datasets = filtered_datasets[start_idx:end_idx]
+    
     # 显示数据行
-    for dataset in datasets:
+    for dataset in page_datasets:
+        # 确保dataset是字典类型
+        if isinstance(dataset, str):
+            dataset_id = dataset
+            dataset_dict = {"id": dataset_id}
+        else:
+            dataset_dict = dataset
+            dataset_id = dataset_dict.get("id", "")
+            
+        # 检查数据集是否已被使用
+        used = is_dataset_used(dataset_id, used_datasets)
+        
         # 处理themes字段，显示multiplier值而不是name值
-        themes_multiplier = ", ".join([str(theme.get("multiplier", "")) for theme in dataset.get("themes", [])]) if dataset.get("themes") else ""
+        themes_multiplier = ""
+        if isinstance(dataset_dict, dict) and "themes" in dataset_dict:
+            themes_multiplier = ", ".join([str(theme.get("multiplier", "")) for theme in dataset_dict.get("themes", [])]) if dataset_dict.get("themes") else ""
         
         # 创建数据行
         cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 1])
         
         # 复选框
         with cols[0]:
-            dataset_id = dataset.get("id", "")
             is_selected = st.checkbox(
                 f"选择数据集 {dataset_id}", 
                 key=f"select_{dataset_id}",
@@ -127,20 +210,59 @@ if datasets:
             )
             # 更新session state
             if is_selected:
-                st.session_state[f"selected_dataset_{dataset_id}"] = dataset
+                st.session_state[f"selected_dataset_{dataset_id}"] = dataset_dict
             elif f"selected_dataset_{dataset_id}" in st.session_state:
                 del st.session_state[f"selected_dataset_{dataset_id}"]
         
-        # 数据列
-        cols[1].write(dataset_id)
-        cols[2].write(f"{dataset.get('category', {}).get('name', '')}")
+        # 数据集ID列 - 对已使用的数据集使用特殊标记
+        with cols[1]:
+            if used:
+                # 使用特殊颜色和标记来标识已使用的数据集
+                st.markdown(f"<span style='color: #1f77b4; font-weight: bold;'>{dataset_id} 🔵</span>", unsafe_allow_html=True)
+            else:
+                st.write(dataset_id)
+        
+        # 其他数据列
+        category_name = ""
+        if isinstance(dataset_dict, dict) and "category" in dataset_dict:
+            category_data = dataset_dict.get("category", {})
+            if isinstance(category_data, dict):
+                category_name = category_data.get("name", "")
+            else:
+                category_name = str(category_data)
+        
+        coverage = 0.0
+        if isinstance(dataset_dict, dict):
+            coverage = dataset_dict.get("coverage", 0.0)
+            
+        value_score = 0
+        if isinstance(dataset_dict, dict):
+            value_score = dataset_dict.get("valueScore", 0)
+            
+        user_count = 0
+        if isinstance(dataset_dict, dict):
+            user_count = dataset_dict.get("userCount", 0)
+            
+        alpha_count = 0
+        if isinstance(dataset_dict, dict):
+            alpha_count = dataset_dict.get("alphaCount", 0)
+            
+        field_count = 0
+        if isinstance(dataset_dict, dict):
+            field_count = dataset_dict.get("fieldCount", 0)
+            
+        pyramid_multiplier = ""
+        if isinstance(dataset_dict, dict):
+            pyramid_multiplier = dataset_dict.get("pyramidMultiplier", "")
+        
+        cols[2].write(category_name)
         cols[3].write(themes_multiplier)
-        cols[4].write(f"{dataset.get('coverage', 0):.2%}")
-        cols[5].write(dataset.get("valueScore", 0))
-        cols[6].write(dataset.get("userCount", 0))
-        cols[7].write(dataset.get("alphaCount", 0))
-        cols[8].write(dataset.get("fieldCount", 0))
-        cols[9].write(dataset.get("pyramidMultiplier", ""))
+        cols[4].write(f"{coverage:.2%}")
+        cols[5].write(value_score)
+        cols[6].write(user_count)
+        cols[7].write(alpha_count)
+        cols[8].write(field_count)
+        cols[9].write(pyramid_multiplier)
                 
 else:
     st.info("当前筛选条件下没有找到数据集")
