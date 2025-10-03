@@ -1,6 +1,5 @@
-import streamlit as st
 from typing import List, Dict, Any
-import os
+
 from brain_lit.svc.database import get_db_connection
 
 
@@ -49,7 +48,7 @@ def query_alphas_by_dataset(region: str, universe: str, delay: int, dataset: str
         return []
 
 
-def query_alphas_by_conditions(region: str, universe: str, delay: int, category: str = None) -> List[Dict[str, Any]]:
+def query_alphas_by_conditions(region: str, universe: str, delay: int, category: str = None, dataset_ids: List[str] = None) -> List[Dict[str, Any]]:
     """
     根据查询条件查询Alpha记录
     
@@ -58,6 +57,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
         universe: 范围
         delay: 延迟
         category: 分类（可选）
+        dataset_ids: 数据集ID列表（可选）
         
     Returns:
         匹配的Alpha记录列表
@@ -85,6 +85,12 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
             query += " AND category = %s"
             params.append(category.lower())
         
+        # 如果指定了数据集ID列表，添加数据集条件
+        if dataset_ids:
+            placeholders = ','.join(['%s'] * len(dataset_ids))
+            query += f" AND dataset IN ({placeholders})"
+            params.extend(dataset_ids)
+        
         query += " ORDER BY sharp*fitness DESC LIMIT 100"
         
         cursor.execute(query, params)
@@ -99,7 +105,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
         return []
 
 
-def query_alphas_simulation_stats(region: str, universe: str, delay: int, category: str = None) -> List[Dict[str, Any]]:
+def query_alphas_simulation_stats(region: str, universe: str, delay: int, category: str = None, dataset_ids: List[str] = None) -> List[Dict[str, Any]]:
     """
     按simulated值进行汇总统计
     
@@ -108,6 +114,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         universe: 范围
         delay: 延迟
         category: 分类（可选）
+        dataset_ids: 数据集ID列表（可选）
         
     Returns:
         按simulated值分组的统计结果
@@ -134,6 +141,12 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         if category and category != "All":
             query += " AND category = %s"
             params.append(category.lower())
+        
+        # 如果指定了数据集ID列表，添加数据集条件
+        if dataset_ids:
+            placeholders = ','.join(['%s'] * len(dataset_ids))
+            query += f" AND dataset IN ({placeholders})"
+            params.extend(dataset_ids)
         
         query += " GROUP BY simulated ORDER BY count DESC"
         
