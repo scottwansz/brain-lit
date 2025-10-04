@@ -24,28 +24,36 @@ st.title("📤 提交Alpha")
 st.markdown("在本页面您可以提交经过验证的Alpha表达式。")
 
 # Phase输入栏位和统计按钮
-col1, col2 = st.columns([3, 1])
+col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
     phase = st.text_input("Phase", value="1")
 with col2:
+    sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
+with col3:
+    fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.1)
+with col4:
     st.write("")  # 空白行用于对齐
     st.write("")
-    query_button = st.button("统计可提交的Alpha")
+    query_button = st.button("统计可提交的Alpha", type="primary")
 
 # 显示分类统计信息
 if query_button:
     # 保存查询状态，确保即使重新渲染页面也能保持显示
     st.session_state.submittable_alpha_stats = True
     st.session_state.phase_value = phase
+    st.session_state.sharp_threshold = sharp_threshold
+    st.session_state.fitness_threshold = fitness_threshold
     
     # 获取侧边栏条件
     region = st.session_state.get('selected_region', 'CHN')
     universe = st.session_state.get('selected_universe', 'TOP2000U')
     delay = st.session_state.get('selected_delay', 1)
     phase_value = st.session_state.get('phase_value', '1')
+    sharp_val = st.session_state.get('sharp_threshold', 1.0)
+    fitness_val = st.session_state.get('fitness_threshold', 0.8)
     
     # 查询各分类下的Alpha数量
-    category_counts = query_submittable_alpha_stats(region, universe, delay, phase_value)
+    category_counts = query_submittable_alpha_stats(region, universe, delay, phase_value, sharp_val, fitness_val)
     
     # 保存分类统计结果到session_state
     st.session_state.category_counts = category_counts
@@ -57,6 +65,8 @@ if st.session_state.get('submittable_alpha_stats'):
     universe = st.session_state.get('selected_universe', 'TOP2000U')
     delay = st.session_state.get('selected_delay', 1)
     phase_value = st.session_state.get('phase_value', '1')
+    sharp_val = st.session_state.get('sharp_threshold', 1.0)
+    fitness_val = st.session_state.get('fitness_threshold', 0.8)
     category_counts = st.session_state.get('category_counts', [])
     
     if category_counts:
@@ -104,7 +114,7 @@ if st.session_state.get('submittable_alpha_stats'):
         
         if need_detail_query and chosen_category:
             # 查询选中分类的详细Alpha信息
-            alpha_details = query_submittable_alpha_details(region, universe, delay, phase_value, chosen_category)
+            alpha_details = query_submittable_alpha_details(region, universe, delay, phase_value, chosen_category, sharp_val, fitness_val)
             
             # 保存当前选中分类的详细信息到session_state
             st.session_state.current_category_details = alpha_details

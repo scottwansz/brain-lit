@@ -162,7 +162,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         return []
 
 
-def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase: str) -> List[Dict[str, Any]]:
+def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
     """
     查询可提交的Alpha统计数据（按分类分组）
     
@@ -171,6 +171,8 @@ def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase:
         universe: 范围
         delay: 延迟
         phase: 阶段
+        sharp_threshold: sharp阈值，默认为1.0
+        fitness_threshold: fitness阈值，默认为0.8
         
     Returns:
         按分类分组的可提交Alpha统计结果
@@ -197,12 +199,12 @@ def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase:
             WHERE region = %s AND universe = %s AND delay = %s AND phase = %s AND simulated = 1
         )
         SELECT category, COUNT(*) as count FROM ranked_alphas 
-        WHERE rn = 1 AND passed = 0 AND sharp >= 1 
+        WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
         GROUP BY category
         ORDER BY count DESC
         """
         
-        cursor.execute(count_query, (region, universe, delay, phase))
+        cursor.execute(count_query, (region, universe, delay, phase, sharp_threshold, fitness_threshold))
         results = cursor.fetchall()
         
         cursor.close()
@@ -214,7 +216,7 @@ def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase:
         return []
 
 
-def query_submittable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str) -> List[Dict[str, Any]]:
+def query_submittable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
     """
     查询指定分类下可提交的Alpha详细信息
     
@@ -224,6 +226,8 @@ def query_submittable_alpha_details(region: str, universe: str, delay: int, phas
         delay: 延迟
         phase: 阶段
         category: 分类
+        sharp_threshold: sharp阈值，默认为1.0
+        fitness_threshold: fitness阈值，默认为0.8
         
     Returns:
         可提交Alpha的详细信息列表
@@ -250,12 +254,12 @@ def query_submittable_alpha_details(region: str, universe: str, delay: int, phas
                   AND simulated = 1 AND category = %s
         )
         SELECT * FROM ranked_alphas 
-        WHERE rn = 1 AND passed = 0 AND sharp >= 1 
+        WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
         ORDER BY abs(sharp*fitness) DESC 
         LIMIT 50
         """
         
-        cursor.execute(detail_query, (region, universe, delay, phase, category))
+        cursor.execute(detail_query, (region, universe, delay, phase, category, sharp_threshold, fitness_threshold))
         results = cursor.fetchall()
         
         cursor.close()

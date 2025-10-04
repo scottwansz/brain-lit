@@ -14,17 +14,6 @@ logger = setup_logger()
 
 def main():
     """主应用函数"""
-    import pandas as pd
-
-    # 您的数据
-    data = [{'simulated': '1', 'count': 93}, {'simulated': '-1', 'count': 30}]
-
-    # 转换为DataFrame
-    df = pd.DataFrame(data)
-
-    # 显示条形图，使用simulated列作为颜色分组
-    st.bar_chart(df, x="simulated", y="count", color="simulated", horizontal=True)
-
     render_main_page()
 
 if __name__ == "__main__":
