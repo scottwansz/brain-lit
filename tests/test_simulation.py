@@ -61,6 +61,8 @@ class TestMain(unittest.TestCase):
         # Simulation submitted: b''
         # Simulation submitted: 400
         # Simulation submitted: b'{"myId":["Unexpected property."]}'
+        # Simulation submitted: 400
+        # Simulation submitted: b'{"settings":{"region":["\\"AMR1\\" is not a valid choice."]}}'
 
         progress_url = simulation_response.headers['Location']
         print("Simulation submitted:", progress_url)
@@ -104,52 +106,61 @@ class TestMain(unittest.TestCase):
             'simulated': 0,
         }
 
-        table_name = f"{query.get('region').lower()}_alphas"
-        records = query_table(table_name, query, limit=2)
-
-        ids = [record.get('id') for record in records]
-        print(len(records))
-        print(records)
-
-        sim_data_list = []
         simulate_tasks = DefaultDict(dict)
+        n_tasks = 2
 
-        for record in records:
-            sim_data = create_simulation_data(record)
-            sim_data_list.append(sim_data)
-
-        simulation_response = submit_simulation(session, sim_data_list)
-        progress_url = simulation_response.headers['Location']
-        print("Simulation submitted:", progress_url)
-
-        update_table(table_name, {'id': ids}, {'simulated': -1})
-
-        simulate_id = progress_url.split('/')[-1]
-        print("simulate_id:", simulate_id)
-
-        simulate_tasks[simulate_id] = {'ids': ids, 'start_time': time.time()}
-
+        # 提交回测任务
         while True:
-            progress_complete, response = check_progress(session, simulate_id)
+            if len(simulate_tasks) < n_tasks:
 
-            if progress_complete:
-                print("progress_data:", response)
+                table_name = f"{query.get('region').lower()}_alphas"
+                records = query_table(table_name, query, limit=2)
 
-                if response.get("status") == "COMPLETE":
-                    print("Completed simulations:", simulate_id)
-                    save_simulate_result(session, simulate_id)
-                else:
-                    print("NOT Completed simulations:", simulate_id)
+                if len(records) == 0:
+                    print("No more records to simulate.")
+                    break
 
-                    for child in response.get('children', []):
-                        error_url = "https://api.worldquantbrain.com/simulations/" + child
-                        print("Error:", error_url)
-                        print(session.get(error_url).json())
+                ids = [record.get('id') for record in records]
+                print(len(records))
+                print(records)
 
-                    update_table(table_name, {'id': ids}, {'simulated': -2})
+                sim_data_list = []
 
-                simulate_tasks.pop(simulate_id)
-                break
+                for record in records:
+                    sim_data = create_simulation_data(record)
+                    sim_data_list.append(sim_data)
+
+                simulation_response = submit_simulation(session, sim_data_list)
+                progress_url = simulation_response.headers['Location']
+                print("Simulation submitted:", progress_url)
+
+                update_table(table_name, {'id': ids}, {'simulated': -1})
+
+                simulate_id = progress_url.split('/')[-1]
+                print("simulate_id:", simulate_id)
+
+                simulate_tasks[simulate_id] = {'ids': ids, 'start_time': time.time()}
+
+        # 检测回测任务执行状态
+        while True:
+            for simulate_id, task_info in simulate_tasks.items():
+                progress_complete, response = check_progress(session, simulate_id)
+
+                if progress_complete:
+                    print("progress_data:", response)
+                    simulate_tasks.pop(simulate_id)
+
+                    if response.get("status") == "COMPLETE":
+                        print("Completed simulations:", simulate_id)
+                        save_simulate_result(session, simulate_id)
+                    else:
+                        print("NOT Completed simulations:", simulate_id)
+
+                        for child in response.get('children', []):
+                            error_url = "https://api.worldquantbrain.com/simulations/" + child
+                            print("Error:", error_url)
+                            print(session.get(error_url).json())
+
+                        update_table(table_name, {'id': ids}, {'simulated': -2})
 
             time.sleep(1)
-

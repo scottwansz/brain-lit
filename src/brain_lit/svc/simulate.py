@@ -1,6 +1,4 @@
-import os
 from time import sleep
-from typing import DefaultDict
 
 from brain_lit.logger import setup_logger
 from brain_lit.svc.auth import AutoLoginSession
@@ -229,37 +227,3 @@ def single_alpha_tune(s:AutoLoginSession, alpha: str, region: str = 'USA', delay
                     print("Failed:", url)
 
                 break
-
-
-if __name__ == '__main__':
-    # 加载.env文件
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    username = os.getenv('BRAIN_USERNAME')
-    password = os.getenv('BRAIN_PASSWORD')
-
-    if not username or not password:
-        logger.error("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
-        exit(1)
-
-    session = AutoLoginSession()
-    session.login_with_credentials(username, password)
-
-    simulate_tasks = DefaultDict(dict)
-    n_tasks = 3
-
-    query = {
-        'region': 'JPN',
-        'universe': 'TOP1600',
-        'delay': 0,
-        'simulated': None,
-    }
-
-    records = get_unsimulated_records(query, limit=10)
-
-    sim_data_list = []
-    for record in records:
-        sim_data = create_simulation_data(record)
-        sim_data_list.append(sim_data)
-        simulation_response = submit_simulation(session, sim_data_list)
