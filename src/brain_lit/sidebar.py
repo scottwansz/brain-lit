@@ -29,7 +29,15 @@ REGION_PARAMS = {
     "CHN": {
         "delay": [1, 0],
         "universe": ["TOP2000U"]
-    }
+    },
+    "JPN": {
+        "delay": [1, 0],
+        "universe": ["TOP1600", "TOP1200"]
+    },
+    "AMR": {
+        "delay": [1, 0],
+        "universe": ["TOP600"]
+    },
 }
 
 # 定义可用的分类列表
