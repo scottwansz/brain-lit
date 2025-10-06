@@ -80,9 +80,9 @@ def get_all_datasets(session: AutoLoginSession, params: dict = None):
             if isinstance(page_datasets, list):
                 all_datasets.extend(page_datasets)
     
-    return all_datasets, total_count
+    return all_datasets # , total_count
 
-def get_used_datasets(region: str, universe: str, delay: int) -> set:
+def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
     """
     从数据库获取已使用的数据集ID集合
     
@@ -109,14 +109,14 @@ def get_used_datasets(region: str, universe: str, delay: int) -> set:
         cursor.execute(query, (region, universe, delay))
         
         # 获取结果
-        used_datasets = set()
+        used_dataset_ids = set()
         for (dataset_id,) in cursor.fetchall():
-            used_datasets.add(dataset_id)
+            used_dataset_ids.add(dataset_id)
         
         cursor.close()
         connection.close()
         
-        return used_datasets
+        return used_dataset_ids
     except Exception as e:
         print(f"查询已使用的数据集时出错: {e}")
         return set()

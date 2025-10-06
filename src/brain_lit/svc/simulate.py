@@ -1,3 +1,4 @@
+import time
 from time import sleep
 
 from brain_lit.logger import setup_logger
@@ -36,6 +37,37 @@ def create_simulation_data(r: dict):
 def submit_simulation(s:AutoLoginSession, sim_data_list: list = None):
     simulation_response = s.post(simulation_url, json=sim_data_list)
     return simulation_response
+
+
+def submit_simulation_task(session: AutoLoginSession, simulate_task):
+    while len(simulate_task['simulate_ids']) < simulate_task['n_tasks_max'] and not simulate_task['stop']:
+
+        table_name = f"{simulate_task['query']['region'].lower()}_alphas"
+        records = query_table(table_name, simulate_task['query'], limit=2)
+        ids = [record.get('id') for record in records]
+        logger.info('len(records): %s', len(records))
+        logger.info('records: %s', records)
+
+        if len(records) == 0:
+            logger.info("No more records to simulate.")
+            break
+
+        sim_data_list = []
+
+        for record in records:
+            sim_data = create_simulation_data(record)
+            sim_data_list.append(sim_data)
+
+        simulation_response = submit_simulation(session, sim_data_list)
+        progress_url = simulation_response.headers['Location']
+        logger.info("Simulation submitted: %s", progress_url)
+
+        update_table(table_name, {'id': ids}, {'simulated': -1})
+
+        simulate_id = progress_url.split('/')[-1]
+        logger.info("simulate_id: %s", simulate_id)
+
+        simulate_task['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
 
 
 def check_progress(s:AutoLoginSession, simulate_id):
@@ -77,6 +109,36 @@ def check_progress(s:AutoLoginSession, simulate_id):
     # }
 
     return False, simulation_progress.json()
+
+
+def check_simulate_task(session: AutoLoginSession, simulate_task):
+    completed_simulate_ids = [simulate_id for simulate_id, simulate_info in simulate_task['simulate_ids'].items()
+                              if simulate_info.get('end_time') is not None]
+
+    for simulate_id in completed_simulate_ids:
+        simulate_task['simulate_ids'].pop(simulate_id)
+
+    for simulate_id, simulate_info in simulate_task['simulate_ids'].items():
+        progress_complete, response = check_progress(session, simulate_id)
+
+        if progress_complete:
+            logger.info("progress_data: %s", response)
+            simulate_info.update({'end_time': time.time()})
+
+            if response.get("status") == "COMPLETE":
+                logger.info("Completed simulations: %s", simulate_id)
+                save_simulate_result(session, simulate_id)
+            else:
+                logger.info("NOT Completed simulations: %s", simulate_id)
+
+                for child in response.get('children', []):
+                    error_url = "https://api.worldquantbrain.com/simulations/" + child
+                    logger.info("Error: %s", error_url)
+                    logger.info(session.get(error_url).json())
+
+                table_name = f"{simulate_task['query']['region'].lower()}_alphas"
+                ids = simulate_task['simulate_ids'][simulate_id]['ids']
+                update_table(table_name, {'id': ids}, {'simulated': -2})
 
 
 def get_unsimulated_records(query, limit=10):

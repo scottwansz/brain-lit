@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.dataset import get_all_datasets, get_used_datasets
+from brain_lit.svc.dataset import get_all_datasets, get_used_dataset_ids
 from brain_lit.svc.alpha_query import query_alphas_by_conditions, query_alphas_simulation_stats
 
 # 设置logger
@@ -102,28 +102,18 @@ with theme_col:
         if st.session_state.get("query_datasets_clicked", False):
             st.rerun()
 
-with button_col:
-    # 添加查询数据集按钮
-    if st.button("查询数据集"):
-        st.session_state.query_datasets_clicked = True
-
-# 只有当查询按钮被点击时才继续执行数据集查询和显示逻辑
-if st.session_state.get("query_datasets_clicked", False):
+if button_col.button("查询数据集"):
+    st.session_state.query_datasets_clicked = True
     # 当参数发生变化时重置页码
     params_changed = (
-        selected_region != st.session_state.get('prev_region', selected_region) or 
-        selected_universe != st.session_state.get('prev_universe', selected_universe) or 
+        selected_region != st.session_state.get('prev_region', selected_region) or
+        selected_universe != st.session_state.get('prev_universe', selected_universe) or
         selected_delay != st.session_state.get('prev_delay', selected_delay) or
         selected_category != st.session_state.get('prev_category', selected_category)
     )
 
     if params_changed:
         st.session_state.current_page = 1
-        # 参数变化时清除缓存
-        cache_keys_to_remove = [key for key in st.session_state.cached_datasets.keys() 
-                               if key.startswith(f"{selected_region}_{selected_universe}_{selected_delay}")]
-        for key in cache_keys_to_remove:
-            del st.session_state.cached_datasets[key]
 
     # 保存当前参数以便下次比较
     st.session_state.prev_region = selected_region
@@ -146,33 +136,27 @@ if st.session_state.get("query_datasets_clicked", False):
     if selected_category and selected_category != "All":
         dataset_params["category"] = selected_category
 
-    # 生成缓存键
-    cache_key = f"{selected_region}_{selected_universe}_{selected_delay}_{selected_category}_all"
-
     # 获取数据集列表
     with st.spinner("正在获取数据集列表..."):
-        # 检查是否有缓存的数据
-        if cache_key in st.session_state.cached_datasets:
-            all_datasets, total_count = st.session_state.cached_datasets[cache_key]
-        else:
-            # 获取所有数据集
-            all_datasets, total_count = get_all_datasets(session, dataset_params)
-            # 缓存数据
-            st.session_state.cached_datasets[cache_key] = (all_datasets, total_count)
+        st.session_state.cached_datasets = get_all_datasets(session, dataset_params)
+        # 获取已使用的数据集列表（一次性获取，避免重复查询数据库）
+        st.session_state.cached_used_dataset_ids = get_used_dataset_ids(selected_region, selected_universe, selected_delay)
 
-    datasets = all_datasets
+# 只有当查询按钮被点击时才继续执行数据集查询和显示逻辑
+if st.session_state.get("query_datasets_clicked", False):
+    all_datasets = st.session_state.cached_datasets
+    total_count = len(all_datasets)
+    used_dataset_ids = st.session_state.cached_used_dataset_ids
 
     # 显示数据集选择
-    if datasets:
-        # 获取已使用的数据集列表（一次性获取，避免重复查询数据库）
-        used_datasets = get_used_datasets(selected_region, selected_universe, selected_delay)
+    if all_datasets:
         
         # 过滤已使用的数据集（如果用户选择了只显示未使用的数据集）
         show_only_unused = st.session_state.get("show_only_unused", False)
         filter_non_empty_themes = st.session_state.get("filter_non_empty_themes", False)
         
         # 应用筛选条件
-        filtered_datasets = datasets
+        filtered_datasets = all_datasets
         
         # 过滤已使用的数据集
         if show_only_unused:
@@ -180,7 +164,7 @@ if st.session_state.get("query_datasets_clicked", False):
                 dataset for dataset in filtered_datasets 
                 if not (
                     dataset.get("id", "") if isinstance(dataset, dict) else dataset
-                ) in used_datasets
+                ) in used_dataset_ids
             ]
         
         # 过滤主题乘数非空的数据集
@@ -239,19 +223,14 @@ if st.session_state.get("query_datasets_clicked", False):
         start_idx = (st.session_state.current_page - 1) * page_size
         end_idx = min(start_idx + page_size, len(filtered_datasets))
         page_datasets = filtered_datasets[start_idx:end_idx]
+        logger.info("page_datasets: %s", page_datasets)
         
         # 显示数据行
-        for dataset in page_datasets:
-            # 确保dataset是字典类型
-            if isinstance(dataset, str):
-                dataset_id = dataset
-                dataset_dict = {"id": dataset_id}
-            else:
-                dataset_dict = dataset
-                dataset_id = dataset_dict.get("id", "")
+        for dataset_dict in page_datasets:
+            dataset_id = dataset_dict.get("id", "")
                 
             # 检查数据集是否已被使用
-            used = dataset_id in used_datasets
+            used = dataset_id in used_dataset_ids
             
             # 处理themes字段，显示multiplier值而不是name值
             themes_multiplier = ""
@@ -283,47 +262,14 @@ if st.session_state.get("query_datasets_clicked", False):
                 else:
                     st.write(dataset_id)
             
-            # 其他数据列
-            category_name = ""
-            if isinstance(dataset_dict, dict) and "category" in dataset_dict:
-                category_data = dataset_dict.get("category", {})
-                if isinstance(category_data, dict):
-                    category_name = category_data.get("name", "")
-                else:
-                    category_name = str(category_data)
-            
-            coverage = 0.0
-            if isinstance(dataset_dict, dict):
-                coverage = dataset_dict.get("coverage", 0.0)
-                
-            value_score = 0
-            if isinstance(dataset_dict, dict):
-                value_score = dataset_dict.get("valueScore", 0)
-                
-            user_count = 0
-            if isinstance(dataset_dict, dict):
-                user_count = dataset_dict.get("userCount", 0)
-                
-            alpha_count = 0
-            if isinstance(dataset_dict, dict):
-                alpha_count = dataset_dict.get("alphaCount", 0)
-                
-            field_count = 0
-            if isinstance(dataset_dict, dict):
-                field_count = dataset_dict.get("fieldCount", 0)
-                
-            pyramid_multiplier = ""
-            if isinstance(dataset_dict, dict):
-                pyramid_multiplier = dataset_dict.get("pyramidMultiplier", "")
-            
-            cols[2].write(category_name)
+            cols[2].write(dataset_dict.get("category", {}).get("name", ""))
             cols[3].write(themes_multiplier)
-            cols[4].write(f"{coverage:.2%}")
-            cols[5].write(value_score)
-            cols[6].write(user_count)
-            cols[7].write(alpha_count)
-            cols[8].write(field_count)
-            cols[9].write(pyramid_multiplier)
+            cols[4].write(f"{dataset_dict.get("coverage", 0):.2%}")
+            cols[5].write(dataset_dict.get("valueScore", 0))
+            cols[6].write(dataset_dict.get("userCount", 0))
+            cols[7].write(dataset_dict.get("alphaCount", 0))
+            cols[8].write(dataset_dict.get("fieldCount", 0))
+            cols[9].write(dataset_dict.get("pyramidMultiplier", ""))
                     
     else:
         st.info("当前筛选条件下没有找到数据集")
@@ -437,25 +383,12 @@ if st.session_state.get("show_query_results", False):
     if query_results:
         # 显示记录总数
         st.write(f"共找到 {len(query_results)} 条记录")
-        
+
         # 使用pandas展示结果
         import pandas as pd
         
-        # 准备数据
-        display_data = []
-        for result in query_results:
-            display_data.append({
-                "Alpha表达式": str(result.get("alpha", ""))[:50] + "..." if len(str(result.get("alpha", ""))) > 50 else str(result.get("alpha", "")),
-                "Sharp": result.get("sharp", ""),
-                "Fitness": result.get("fitness", ""),
-                "衰减": result.get("decay", ""),
-                "中性化": result.get("neutralization", ""),
-                "阶段": result.get("phase", ""),
-                "更新时间": result.get("updated_at", "") if result.get("updated_at") else result.get("created_at", "")
-            })
-        
         # 创建DataFrame并显示
-        df = pd.DataFrame(display_data)
+        df = pd.DataFrame(query_results)
         st.dataframe(df, width='stretch')
     else:
         st.info("未找到相关记录")

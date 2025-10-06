@@ -2,11 +2,12 @@ import time
 import unittest
 from typing import DefaultDict
 
+from brain_lit.logger import setup_logger
 from brain_lit.svc.auth import AutoLoginSession
-from brain_lit.svc.database import query_table, update_table
-from brain_lit.svc.simulate import get_unsimulated_records, create_simulation_data, submit_simulation, check_progress, \
-    save_simulate_result
+from brain_lit.svc.simulate import get_unsimulated_records, check_progress, \
+    submit_simulation_task, check_simulate_task
 
+logger = setup_logger(__name__)
 
 class TestMain(unittest.TestCase):
     def test_main(self):
@@ -105,62 +106,37 @@ class TestMain(unittest.TestCase):
             'delay': 0,
             'simulated': 0,
         }
+        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+        n_tasks_max = 2
 
         simulate_tasks = DefaultDict(dict)
-        n_tasks = 2
+        simulate_tasks[task_id] = {
+            'n_tasks_max': n_tasks_max,
+            'query': query,
+            'start_time': time.strftime("%Y-%m-%d %H:%M:%S"),
+            'simulate_ids': {},
+            'stop': False,
+        }
 
         # 提交回测任务
         while True:
-            if len(simulate_tasks) < n_tasks:
+            for task_id, task_info in simulate_tasks.items():
 
-                table_name = f"{query.get('region').lower()}_alphas"
-                records = query_table(table_name, query, limit=2)
+                if len(task_info['simulate_ids']) == 0 and task_info['stop']:
+                    simulate_tasks.pop(task_id)
+                    continue
 
-                if len(records) == 0:
-                    print("No more records to simulate.")
-                    break
-
-                ids = [record.get('id') for record in records]
-                print(len(records))
-                print(records)
-
-                sim_data_list = []
-
-                for record in records:
-                    sim_data = create_simulation_data(record)
-                    sim_data_list.append(sim_data)
-
-                simulation_response = submit_simulation(session, sim_data_list)
-                progress_url = simulation_response.headers['Location']
-                print("Simulation submitted:", progress_url)
-
-                update_table(table_name, {'id': ids}, {'simulated': -1})
-
-                simulate_id = progress_url.split('/')[-1]
-                print("simulate_id:", simulate_id)
-
-                simulate_tasks[simulate_id] = {'ids': ids, 'start_time': time.time()}
+                submit_simulation_task(session, task_info)
 
         # 检测回测任务执行状态
         while True:
-            for simulate_id, task_info in simulate_tasks.items():
-                progress_complete, response = check_progress(session, simulate_id)
+            if len(simulate_tasks) == 0:
+                break
 
-                if progress_complete:
-                    print("progress_data:", response)
-                    simulate_tasks.pop(simulate_id)
+            for task_id, task_info in simulate_tasks.items():
 
-                    if response.get("status") == "COMPLETE":
-                        print("Completed simulations:", simulate_id)
-                        save_simulate_result(session, simulate_id)
-                    else:
-                        print("NOT Completed simulations:", simulate_id)
+                if len(task_info['simulate_ids']) == 0 and task_info['stop']:
+                    simulate_tasks.pop(task_id)
+                    continue
 
-                        for child in response.get('children', []):
-                            error_url = "https://api.worldquantbrain.com/simulations/" + child
-                            print("Error:", error_url)
-                            print(session.get(error_url).json())
-
-                        update_table(table_name, {'id': ids}, {'simulated': -2})
-
-            time.sleep(1)
+                check_simulate_task(session, task_info)

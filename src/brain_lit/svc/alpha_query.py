@@ -74,7 +74,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
         
         # 构建查询语句
         query = f"""
-        SELECT id, alpha, sharp, fitness, decay, neutralization, phase, created_at, updated_at 
+        SELECT * 
         FROM {table_name} 
         WHERE universe = %s AND delay = %s
         """
