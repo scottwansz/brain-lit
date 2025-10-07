@@ -44,6 +44,7 @@ REGION_PARAMS = {
 CATEGORIES = [
     ('All', ''),
     ('Analyst', 'analyst'),
+    ('Broker', 'broker'),
     ('Earnings', 'earnings'),
     ('Fundamental', 'fundamental'),
     ('Imbalance', 'imbalance'),
