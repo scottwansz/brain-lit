@@ -173,7 +173,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
             break
 
         if simulation_response.status_code != 201:
-            logger.info("Simulation response status: %s", simulation_response.status_code)
+            logger.error("Simulation response status: %s", simulation_response.status_code)
             logger.error("Simulation failed: %s", simulation_response.content.decode())
             break
 
@@ -244,14 +244,16 @@ def check_simulate_task(session: AutoLoginSession, task_info):
         progress_complete, response = check_progress(session, simulate_id)
 
         if progress_complete:
-            logger.info("progress_data: %s", response)
+            # logger.info("progress_data: %s", response)
             simulate_info.update({'end_time': time.time()})
 
             if response.get("status") == "COMPLETE":
-                logger.info("Completed simulations: %s", simulate_id)
+                time_used = time.time() - simulate_info.get('start_time')
+                logger.info("Completed simulations in %s seconds: %s", time_used, simulate_id)
                 save_simulate_result(session, simulate_id)
             else:
-                logger.error("NOT Completed simulations: %s", simulate_id)
+                logger.error("Fail simulations: %s", simulate_id)
+                logger.error("Fail reasons: %s", response)
 
                 table_name = f"{task_info['query']['region'].lower()}_alphas"
                 ids = task_info['simulate_ids'][simulate_id]['ids']
@@ -267,7 +269,7 @@ def check_simulate_task(session: AutoLoginSession, task_info):
         else:
             simulate_info.update(response)
             simulate_info['time_used'] = time.time() - simulate_info.get('start_time')
-            logger.info("Simulate Not complete %s: %s", simulate_id, response)
+            logger.info("Simulate IN PROGRESS %s: %s", simulate_id, response)
 
 
 def get_unsimulated_records(query, limit=10):
