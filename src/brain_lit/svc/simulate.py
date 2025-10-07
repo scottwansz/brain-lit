@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from time import sleep
@@ -98,7 +99,7 @@ class SimulateTaskManager:
 
             with self._lock:
                 completed_task_ids = [task_id for task_id, task_info in self.simulate_tasks.items() if len(task_info['simulate_ids']) == 0 and task_info['stop']]
-                logger.info("completed_task_ids: %s", completed_task_ids)
+                # logger.info("completed_task_ids: %s", completed_task_ids)
 
                 for task_id in completed_task_ids:
                     self.simulate_tasks.pop(task_id)
@@ -147,10 +148,10 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
     while len(simulate_info['simulate_ids']) < simulate_info['n_tasks_max'] and not simulate_info['stop']:
 
         table_name = f"{simulate_info['query']['region'].lower()}_alphas"
-        records = query_table(table_name, simulate_info['query'], limit=2)
+        records = query_table(table_name, simulate_info['query'], limit=10)
         ids = [record.get('id') for record in records]
-        logger.info('len(records): %s', len(records))
-        logger.info('records: %s', records)
+        # logger.info('len(records): %s', len(records))
+        # logger.info('records: %s', records)
 
         if len(records) == 0:
             logger.info("No more records to simulate.")
@@ -191,7 +192,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
 def check_progress(s:AutoLoginSession, simulate_id):
     simulation_progress = s.get(f"{simulation_url}/{simulate_id}")
 
-    logger.info(f"{simulation_url}/{simulate_id} check_progress result: %s", simulation_progress.json())
+    # logger.info(f"{simulation_url}/{simulate_id} check_progress result: %s", simulation_progress.json())
     # {'progress': 0.15}
 
     if simulation_progress.headers.get("Retry-After", 0) == 0:
@@ -250,18 +251,22 @@ def check_simulate_task(session: AutoLoginSession, task_info):
                 logger.info("Completed simulations: %s", simulate_id)
                 save_simulate_result(session, simulate_id)
             else:
-                logger.info("NOT Completed simulations: %s", simulate_id)
-
-                for child in response.get('children', []):
-                    error_url = "https://api.worldquantbrain.com/simulations/" + child
-                    logger.info("Error: %s", error_url)
-                    logger.info(session.get(error_url).json())
+                logger.error("NOT Completed simulations: %s", simulate_id)
 
                 table_name = f"{task_info['query']['region'].lower()}_alphas"
                 ids = task_info['simulate_ids'][simulate_id]['ids']
-                update_table(table_name, {'id': ids}, {'simulated': -2})
+                update_table(table_name, {'id': ids}, {'simulated': -2, 'fail_reasons': json.dumps(response)})
+
+                for child in response.get('children', []):
+                    error_url = f"{simulation_url}/{child}"
+                    logger.error("Error: %s", error_url)
+
+                    error_response = session.get(error_url).json()
+                    logger.error(error_response)
+
         else:
             simulate_info.update(response)
+            simulate_info['time_used'] = time.time() - simulate_info.get('start_time')
             logger.info("Simulate Not complete %s: %s", simulate_id, response)
 
 
