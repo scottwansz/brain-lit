@@ -1,8 +1,10 @@
-import mysql.connector
-import streamlit as st
 from typing import Dict, Any, List, Optional
 
+import mysql.connector
+import streamlit as st
 
+
+# @st.cache_resource
 def get_db_connection():
     """
     创建并返回数据库连接

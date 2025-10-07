@@ -1,13 +1,117 @@
+import threading
 import time
 from time import sleep
+from typing import DefaultDict
+
+import streamlit as st
 
 from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession
+from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
 from brain_lit.svc.database import query_table, update_table
 
-simulation_url = 'https://api.worldquantbrain.com/simulations/'
+simulation_url = 'https://api.worldquantbrain.com/simulations'
 
 logger = setup_logger()
+lock = threading.Lock()
+
+@st.cache_resource
+def get_simulate_task_manager():
+    return SimulateTaskManager()
+
+
+class SimulateTaskManager:
+    def __init__(self):
+        self.session = get_auto_login_session()
+        self.simulate_submit_thread = None
+        self.simulate_check_thread = None
+        self.simulate_tasks = DefaultDict(dict)
+        self._lock = threading.Lock()
+
+    def start_simulate(self, query, n_tasks_max=10):
+        logger.info("Simulate_task: %s", self.simulate_tasks)
+        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+
+        if self.simulate_tasks.get(task_id):
+            task_info = self.simulate_tasks.get(task_id)
+            task_info['n_tasks_max'] = n_tasks_max
+            logger.info("Simulate task %s is already running.", task_id)
+        else:
+            simulate_info = {
+                'query': query,
+                'simulate_ids': {},
+                'stop': False,
+                'n_tasks_max': n_tasks_max,
+            }
+            self.simulate_tasks[task_id] = simulate_info
+            logger.info("Simulate task %s is started.", task_id)
+
+        if self.simulate_submit_thread is None:
+            self.simulate_submit_thread = threading.Thread(target=self.start_auto_submit, daemon=True)
+            self.simulate_submit_thread.start()
+            logger.info("Simulate SUBMIT is started.")
+        else:
+            logger.info("Simulate SUBMIT is already running.")
+
+        if self.simulate_check_thread is None:
+            self.simulate_check_thread = threading.Thread(target=self.start_monitoring, daemon=True)
+            self.simulate_check_thread.start()
+            logger.info("Simulate CHECK is started.")
+        else:
+            logger.info("Simulate CHECK is already running.")
+
+    def stop_simulate(self, query):
+        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+        task_info = self.simulate_tasks.get(task_id)
+        if task_info:
+            task_info['stop'] = True
+            logger.info(f"Simulate task {task_id} is stopped.")
+        else:
+            logger.info(f"Simulate task {task_id} is not running.")
+
+    def start_auto_submit(self):
+        # 提交回测任务
+        while True:
+
+            time.sleep(0.5)
+
+            # completed_task_ids = [task_id for task_id, task_info in self.simulate_tasks.items() if len(task_info['simulate_ids']) == 0 and task_info['stop']]
+
+            # for task_id in completed_task_ids:
+            #     self.simulate_tasks.pop(task_id)
+
+            with self._lock:
+                todo_task_infos = [task_info for task_id, task_info in self.simulate_tasks.items() if not task_info['stop']]
+
+            if len(todo_task_infos) == 0:
+                self.simulate_submit_thread = None
+                logger.info("Simulate SUBMIT is stopped.")
+                break
+
+            for task_info in todo_task_infos:
+                submit_simulation_task(self.session, task_info)
+
+    def start_monitoring(self):
+        # 检测回测任务执行状态
+        while True:
+
+            time.sleep(1)
+
+            with self._lock:
+                completed_task_ids = [task_id for task_id, task_info in self.simulate_tasks.items() if len(task_info['simulate_ids']) == 0 and task_info['stop']]
+                logger.info("completed_task_ids: %s", completed_task_ids)
+
+                for task_id in completed_task_ids:
+                    self.simulate_tasks.pop(task_id)
+
+                todo_task_infos = [task_info for task_id, task_info in self.simulate_tasks.items()]
+
+            if len(todo_task_infos) == 0:
+                self.simulate_check_thread = None
+                logger.info("Simulate CHECK is stopped.")
+                break
+
+            for task_info in todo_task_infos:
+                check_simulate_task(self.session, task_info)
 
 
 def create_simulation_data(r: dict):
@@ -39,17 +143,18 @@ def submit_simulation(s:AutoLoginSession, sim_data_list: list = None):
     return simulation_response
 
 
-def submit_simulation_task(session: AutoLoginSession, simulate_task):
-    while len(simulate_task['simulate_ids']) < simulate_task['n_tasks_max'] and not simulate_task['stop']:
+def submit_simulation_task(session: AutoLoginSession, simulate_info):
+    while len(simulate_info['simulate_ids']) < simulate_info['n_tasks_max'] and not simulate_info['stop']:
 
-        table_name = f"{simulate_task['query']['region'].lower()}_alphas"
-        records = query_table(table_name, simulate_task['query'], limit=2)
+        table_name = f"{simulate_info['query']['region'].lower()}_alphas"
+        records = query_table(table_name, simulate_info['query'], limit=2)
         ids = [record.get('id') for record in records]
         logger.info('len(records): %s', len(records))
         logger.info('records: %s', records)
 
         if len(records) == 0:
             logger.info("No more records to simulate.")
+            simulate_info['stop'] = True
             break
 
         sim_data_list = []
@@ -59,21 +164,34 @@ def submit_simulation_task(session: AutoLoginSession, simulate_task):
             sim_data_list.append(sim_data)
 
         simulation_response = submit_simulation(session, sim_data_list)
+
+        if simulation_response.status_code == 429:
+            logger.info("Simulation failed: %s", simulation_response.content.decode())
+            # Simulation failed: {"detail": "CONCURRENT_SIMULATION_LIMIT_EXCEEDED"}
+            simulate_info['n_tasks_max'] = simulate_info['n_tasks_max'] - 1
+            break
+
+        if simulation_response.status_code != 201:
+            logger.info("Simulation response status: %s", simulation_response.status_code)
+            logger.error("Simulation failed: %s", simulation_response.content.decode())
+            break
+
         progress_url = simulation_response.headers['Location']
         logger.info("Simulation submitted: %s", progress_url)
 
-        update_table(table_name, {'id': ids}, {'simulated': -1})
-
         simulate_id = progress_url.split('/')[-1]
-        logger.info("simulate_id: %s", simulate_id)
+        # logger.info("simulate_id: %s", simulate_id)
 
-        simulate_task['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
+        update_table(table_name, {'id': ids}, {'simulated': -1, 'simulate_id': simulate_id})
+
+        with lock:
+            simulate_info['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
 
 
 def check_progress(s:AutoLoginSession, simulate_id):
-    simulation_progress = s.get(simulation_url + simulate_id)
+    simulation_progress = s.get(f"{simulation_url}/{simulate_id}")
 
-    # print(progress_url, simulation_progress.json())
+    logger.info(f"{simulation_url}/{simulate_id} check_progress result: %s", simulation_progress.json())
     # {'progress': 0.15}
 
     if simulation_progress.headers.get("Retry-After", 0) == 0:
@@ -111,14 +229,17 @@ def check_progress(s:AutoLoginSession, simulate_id):
     return False, simulation_progress.json()
 
 
-def check_simulate_task(session: AutoLoginSession, simulate_task):
-    completed_simulate_ids = [simulate_id for simulate_id, simulate_info in simulate_task['simulate_ids'].items()
+def check_simulate_task(session: AutoLoginSession, task_info):
+    completed_simulate_ids = [simulate_id for simulate_id, simulate_info in task_info['simulate_ids'].items()
                               if simulate_info.get('end_time') is not None]
 
     for simulate_id in completed_simulate_ids:
-        simulate_task['simulate_ids'].pop(simulate_id)
+        task_info['simulate_ids'].pop(simulate_id)
 
-    for simulate_id, simulate_info in simulate_task['simulate_ids'].items():
+    with lock:
+        simulate_ids_items  = list(task_info['simulate_ids'].items())
+
+    for simulate_id, simulate_info in simulate_ids_items:
         progress_complete, response = check_progress(session, simulate_id)
 
         if progress_complete:
@@ -136,9 +257,12 @@ def check_simulate_task(session: AutoLoginSession, simulate_task):
                     logger.info("Error: %s", error_url)
                     logger.info(session.get(error_url).json())
 
-                table_name = f"{simulate_task['query']['region'].lower()}_alphas"
-                ids = simulate_task['simulate_ids'][simulate_id]['ids']
+                table_name = f"{task_info['query']['region'].lower()}_alphas"
+                ids = task_info['simulate_ids'][simulate_id]['ids']
                 update_table(table_name, {'id': ids}, {'simulated': -2})
+        else:
+            simulate_info.update(response)
+            logger.info("Simulate Not complete %s: %s", simulate_id, response)
 
 
 def get_unsimulated_records(query, limit=10):
@@ -150,16 +274,16 @@ def get_unsimulated_records(query, limit=10):
 
 def save_simulate_result(s: AutoLoginSession, simulate_id):
     try:
-        response = s.get(simulation_url.format(simulate_id))
+        response = s.get(f"{simulation_url}/{simulate_id}")
     except Exception as e:
         error_message = response.content.decode('utf-8')
-        print("save_simulate_result error: %s" % error_message)
+        logger.error("Get child of %s error: %s", simulate_id, error_message)
 
         # if "Incorrect authentication credentials." in error_message:
         #     s = login()
 
     for child in response.json().get('children', []):
-        url = simulation_url + child
+        url = f"{simulation_url}/{child}"
         response = s.get(url)
 
         """
@@ -209,7 +333,8 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
             'fitness': r['is'].get('fitness', 0),
             'passed': -1 if len(fail_reasons) > 1 else 0,
             'fail_reasons': json.dumps(fail_reasons),
-            "simulated": 1
+            "simulated": 1,
+            'simulate_id': child
         }
         where_data = {
             'alpha': r.get('regular').get('code'),

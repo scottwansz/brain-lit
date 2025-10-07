@@ -1,15 +1,14 @@
-import os
 from urllib.parse import urlencode
 
-from dotenv import load_dotenv
+import streamlit as st
 
 from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession
+from brain_lit.svc.auth import get_auto_login_session
 from brain_lit.svc.database import get_db_connection
 
 logger = setup_logger()
 
-def get_dataset_list(session: AutoLoginSession, params: dict = None):
+def get_dataset_list(params: dict = None):
     # 获取数据
     if params is None:
         params = {
@@ -22,10 +21,13 @@ def get_dataset_list(session: AutoLoginSession, params: dict = None):
         }
     query_string = urlencode(params)
     url = f"https://api.worldquantbrain.com/data-sets?{query_string}"
+    session = get_auto_login_session()
     data_response = session.get(url)
     return data_response.json()
 
-def get_all_datasets(session: AutoLoginSession, params: dict = None):
+
+@st.cache_data(ttl=3600*24)
+def get_all_datasets(params: dict = None):
     """
     获取所有数据集，不分页
     """
@@ -47,7 +49,7 @@ def get_all_datasets(session: AutoLoginSession, params: dict = None):
     first_page_params["limit"] = 50
     first_page_params["offset"] = 0
     
-    first_page_response = get_dataset_list(session, first_page_params)
+    first_page_response = get_dataset_list(first_page_params)
     
     # 检查返回的数据格式
     if isinstance(first_page_response, dict):
@@ -70,7 +72,7 @@ def get_all_datasets(session: AutoLoginSession, params: dict = None):
             page_params["limit"] = page_size
             page_params["offset"] = page * page_size
             
-            page_response = get_dataset_list(session, page_params)
+            page_response = get_dataset_list(page_params)
             # 检查返回的数据格式
             if isinstance(page_response, dict):
                 page_datasets = page_response.get("results", [])
@@ -82,6 +84,7 @@ def get_all_datasets(session: AutoLoginSession, params: dict = None):
     
     return all_datasets # , total_count
 
+@st.cache_data(ttl=3600)
 def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
     """
     从数据库获取已使用的数据集ID集合
@@ -120,33 +123,3 @@ def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
     except Exception as e:
         print(f"查询已使用的数据集时出错: {e}")
         return set()
-
-if __name__ == '__main__':
-
-    logger.info("开始执行...")
-
-    load_dotenv()
-    username = os.getenv('BRAIN_USERNAME')
-    password = os.getenv('BRAIN_PASSWORD')
-
-    if not username or not password:
-        logger.error("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
-        raise ValueError("未配置环境变量 BRAIN_USERNAME 或 BRAIN_PASSWORD")
-
-    # 根据API特性调整参数
-    session = AutoLoginSession(username, password)
-
-    # 使用自定义参数
-    custom_params = {
-        "region": "USA",
-        "universe": "TOP3000",
-        "delay": 1,
-        "instrumentType": "EQUITY",
-        "limit": 50,
-        "offset": 0,
-    }
-    ds_list = get_dataset_list(session, custom_params)
-    logger.info(f"数据集列表: {ds_list}")
-
-    ds_all = get_all_datasets(session, custom_params)
-    logger.info(f"所有数据集: {ds_all}")

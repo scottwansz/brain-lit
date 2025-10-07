@@ -1,13 +1,18 @@
-import os
 import time
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
+import streamlit as st
 
 from brain_lit.logger import setup_logger
 
 logger = setup_logger()
+
+@st.cache_resource
+def get_auto_login_session():
+    username = st.secrets["brain"]["username"]
+    password = st.secrets["brain"]["password"]
+    return AutoLoginSession(username, password)
 
 class AutoLoginSession:
     """自动登录会话，在会话失效时自动重新登录"""

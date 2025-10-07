@@ -122,7 +122,7 @@ if button_col.button("查询数据集"):
     st.session_state.prev_category = selected_category
 
     # 分页显示数据集
-    session = st.session_state.global_session
+    # session = st.session_state.global_session
 
     # 构建API请求参数
     dataset_params = {
@@ -138,7 +138,7 @@ if button_col.button("查询数据集"):
 
     # 获取数据集列表
     with st.spinner("正在获取数据集列表..."):
-        st.session_state.cached_datasets = get_all_datasets(session, dataset_params)
+        st.session_state.cached_datasets = get_all_datasets(dataset_params)
         # 获取已使用的数据集列表（一次性获取，避免重复查询数据库）
         st.session_state.cached_used_dataset_ids = get_used_dataset_ids(selected_region, selected_universe, selected_delay)
 
@@ -223,7 +223,7 @@ if st.session_state.get("query_datasets_clicked", False):
         start_idx = (st.session_state.current_page - 1) * page_size
         end_idx = min(start_idx + page_size, len(filtered_datasets))
         page_datasets = filtered_datasets[start_idx:end_idx]
-        logger.info("page_datasets: %s", page_datasets)
+        # logger.info("page_datasets: %s", page_datasets)
         
         # 显示数据行
         for dataset_dict in page_datasets:
@@ -363,7 +363,7 @@ if st.session_state.get("simulation_stats_data"):
     # 计算总记录数
     stats = st.session_state.simulation_stats_data
     if stats:
-        
+
         # 准备用于水平堆叠条形图的数据
         import pandas as pd
 
@@ -379,19 +379,78 @@ if st.session_state.get("simulation_stats_data"):
 if st.session_state.get("show_query_results", False):
     st.subheader("查询结果")
     query_results = st.session_state.get("query_results", [])
-    
+
     if query_results:
         # 显示记录总数
         st.write(f"共找到 {len(query_results)} 条记录")
 
         # 使用pandas展示结果
         import pandas as pd
-        
+
         # 创建DataFrame并显示
         df = pd.DataFrame(query_results)
         st.dataframe(df, width='stretch')
     else:
         st.info("未找到相关记录")
+
+
+# 添加最大任务数输入框和新的操作按钮
+st.markdown("---")
+col10, col11, col12, col13, col14 = st.columns([1, 1, 1, 1, 2])
+
+# 获取SimulateTaskManager实例
+from brain_lit.svc.simulate import get_simulate_task_manager
+task_manager = get_simulate_task_manager()
+
+with col10:
+    # 最大任务数输入框
+    n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
+
+# 开始回测按钮
+if col11.button("开始回测"):
+    # 构建查询参数
+    selected_dataset_ids = get_selected_dataset_ids()
+    query = {
+        "region": selected_region,
+        "universe": selected_universe,
+        "delay": selected_delay,
+        "dataset_ids": selected_dataset_ids,
+        'simulated': 0,
+    }
+
+    # 添加分类参数（如果不是"All"）
+    if selected_category and selected_category != "All":
+        query["category"] = selected_category
+
+    # 调用start_simulate方法
+    task_manager.start_simulate(query, n_tasks_max)
+    st.success("已开始回测任务")
+
+# 回测状态按钮
+if col12.button("回测状态"):
+    # 显示simulate_tasks信息
+    st.write("当前回测任务信息:")
+    st.json(task_manager.simulate_tasks)
+
+# 停止回测按钮
+if col13.button("停止回测"):
+    # 构建查询参数
+    selected_dataset_ids = get_selected_dataset_ids()
+    query = {
+        "region": selected_region,
+        "universe": selected_universe,
+        "delay": selected_delay,
+        "category": selected_category,
+        "dataset_ids": selected_dataset_ids
+    }
+
+    # 调用stop_simulate方法
+    task_manager.stop_simulate(query)
+    st.success("已停止回测任务")
+
+with col14:
+    pass  # 空列用于布局
+
 
 # 显示示例
 with st.expander("查看Alpha表达式示例"):

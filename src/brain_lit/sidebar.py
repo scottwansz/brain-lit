@@ -3,7 +3,7 @@ import datetime
 import streamlit as st
 
 from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession
+from brain_lit.svc.auth import get_auto_login_session
 
 # 设置logger
 logger = setup_logger()
@@ -72,9 +72,7 @@ def render_sidebar():
     )
 
     if 'global_session' not in st.session_state:
-        username = st.secrets["brain"]["username"]
-        password = st.secrets["brain"]["password"]
-        st.session_state.global_session = AutoLoginSession(username, password)
+        st.session_state.global_session = get_auto_login_session()
     
     with st.sidebar:
         st.title(f"欢迎, {st.session_state.global_session.user_id}!")
