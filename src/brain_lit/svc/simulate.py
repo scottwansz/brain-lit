@@ -195,6 +195,11 @@ def check_progress(s:AutoLoginSession, simulate_id):
 
     # logger.info(f"{simulation_url}/{simulate_id} check_progress result: %s", simulation_progress.json())
     # {'progress': 0.15}
+
+    if simulation_progress.status_code == 504:
+        logger.warning("Simulate 504 FAILED: %s", simulation_progress.content.decode())
+        # 504 Gateway Time - out
+        return False, {'errr': '504 Gateway Time - out'}
     
     # 添加响应检查
     if not simulation_progress.ok:
@@ -387,6 +392,10 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         # regular = response.json()['regular']
 
         r = get_alpha_one(s, alpha_id)
+        if not r:
+            logger.error("Failed to get alpha simulate result: %s", alpha_id)
+            continue
+
         checks = r.get('is').get('checks')
 
         # 解析检查结果
@@ -418,9 +427,15 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         update_table(table_name, updates=set_data, conditions=where_data)
 
 
-def get_alpha_one(s: AutoLoginSession, alpha_id):
+def get_alpha_one(s: AutoLoginSession, alpha_id, retry=0):
     url = "https://api.worldquantbrain.com/alphas/" + alpha_id
     response = s.get(url)
+
+    if response.status_code == 504:
+        logger.error("Timeout error when getting alpha %s", alpha_id)
+        if retry > 3:
+            return {}
+        return get_alpha_one(s, alpha_id, retry + 1)
     
     # 添加响应检查
     if not response.ok:
