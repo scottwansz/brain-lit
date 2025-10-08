@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+from json import JSONDecodeError
 from time import sleep
 from typing import DefaultDict
 
@@ -167,7 +168,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
         simulation_response = submit_simulation(session, sim_data_list)
 
         if simulation_response.status_code == 429:
-            logger.info("Simulation failed: %s", simulation_response.content.decode())
+            logger.warning("Simulate FAILED: %s", simulation_response.content.decode())
             # Simulation failed: {"detail": "CONCURRENT_SIMULATION_LIMIT_EXCEEDED"}
             simulate_info['n_tasks_max'] = simulate_info['n_tasks_max'] - 1
             break
@@ -178,7 +179,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
             break
 
         progress_url = simulation_response.headers['Location']
-        logger.info("Simulation submitted: %s", progress_url)
+        logger.info("Simulate SUBMITTED: %s", progress_url)
 
         simulate_id = progress_url.split('/')[-1]
         # logger.info("simulate_id: %s", simulate_id)
@@ -194,9 +195,22 @@ def check_progress(s:AutoLoginSession, simulate_id):
 
     # logger.info(f"{simulation_url}/{simulate_id} check_progress result: %s", simulation_progress.json())
     # {'progress': 0.15}
+    
+    # 添加响应检查
+    if not simulation_progress.ok:
+        logger.error("Failed to check progress for %s. Status code: %s", simulate_id, simulation_progress.status_code)
+        logger.error("Response content: %s", simulation_progress.content.decode('utf-8') if simulation_progress.content else "Empty response")
+        return True, {}
 
     if simulation_progress.headers.get("Retry-After", 0) == 0:
-        return True, simulation_progress.json()
+        # 检查响应内容是否可以解析为JSON
+        try:
+            response_json = simulation_progress.json()
+            return True, response_json
+        except json.JSONDecodeError as e:
+            logger.error("Failed to decode JSON for progress check %s. Error: %s", simulate_id, str(e))
+            logger.error("Response content: %s", simulation_progress.content.decode('utf-8') if simulation_progress.content else "Empty response")
+            return True, {}
 
     sleep(float(simulation_progress.headers["Retry-After"]))
 
@@ -227,7 +241,14 @@ def check_progress(s:AutoLoginSession, simulate_id):
     #     "status": "COMPLETE"
     # }
 
-    return False, simulation_progress.json()
+    # 检查响应内容是否可以解析为JSON
+    try:
+        response_json = simulation_progress.json()
+        return False, response_json
+    except json.JSONDecodeError as e:
+        logger.error("Failed to decode JSON for progress check %s. Error: %s", simulate_id, str(e))
+        logger.error("Response content: %s", simulation_progress.content.decode('utf-8') if simulation_progress.content else "Empty response")
+        return False, {}
 
 
 def check_simulate_task(session: AutoLoginSession, task_info):
@@ -249,7 +270,7 @@ def check_simulate_task(session: AutoLoginSession, task_info):
 
             if response.get("status") == "COMPLETE":
                 time_used = time.time() - simulate_info.get('start_time')
-                logger.info("Completed simulations in %s seconds: %s", time_used, simulate_id)
+                logger.info("Completed simulations in %s seconds: %s", int(time_used), simulate_id)
                 save_simulate_result(session, simulate_id)
             else:
                 logger.error("Fail simulations: %s", simulate_id)
@@ -279,6 +300,7 @@ def get_unsimulated_records(query, limit=10):
     table_name = f"{query.get('region').lower()}_alphas"
     return query_table(table_name, query, limit=limit)
 
+
 def save_simulate_result(s: AutoLoginSession, simulate_id):
     try:
         response = s.get(f"{simulation_url}/{simulate_id}")
@@ -289,9 +311,44 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         # if "Incorrect authentication credentials." in error_message:
         #     s = login()
 
-    for child in response.json().get('children', []):
+    # 添加检查响应是否成功
+    if not response.ok:
+        logger.error("Failed to get simulation result for %s. Status code: %s", simulate_id, response.status_code)
+        logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+        return
+
+    # 检查响应内容是否为空
+    if not response.content:
+        logger.error("Empty response received for simulation %s", simulate_id)
+        return
+
+    try:
+        response_json = response.json()
+    except JSONDecodeError as e:
+        logger.error("Failed to decode JSON for simulation %s. Error: %s", simulate_id, str(e))
+        logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+        return
+
+    for child in response_json.get('children', []):
         url = f"{simulation_url}/{child}"
         response = s.get(url)
+
+        # 检查子任务响应
+        if not response.ok:
+            logger.error("Failed to get child simulation %s. Status code: %s", child, response.status_code)
+            logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+            continue
+
+        if not response.content:
+            logger.error("Empty response received for child simulation %s", child)
+            continue
+
+        try:
+            child_response_json = response.json()
+        except json.JSONDecodeError as e:
+            logger.error("Failed to decode JSON for child simulation %s. Error: %s", child, str(e))
+            logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+            continue
 
         """
         response.json() example:
@@ -320,7 +377,13 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         }
         """
 
-        alpha_id = response.json()['alpha']
+        # 检查响应中是否包含 'alpha' 字段
+        if 'alpha' not in child_response_json:
+            logger.error("Missing 'alpha' field in response for child simulation %s", child)
+            logger.error("Response content: %s", json.dumps(child_response_json, indent=2))
+            continue
+
+        alpha_id = child_response_json['alpha']
         # regular = response.json()['regular']
 
         r = get_alpha_one(s, alpha_id)
@@ -355,11 +418,27 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         update_table(table_name, updates=set_data, conditions=where_data)
 
 
-
 def get_alpha_one(s: AutoLoginSession, alpha_id):
     url = "https://api.worldquantbrain.com/alphas/" + alpha_id
-    r = s.get(url).json()
-    return r
+    response = s.get(url)
+    
+    # 添加响应检查
+    if not response.ok:
+        logger.error("Failed to get alpha %s. Status code: %s", alpha_id, response.status_code)
+        logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+        return {}
+    
+    if not response.content:
+        logger.error("Empty response received for alpha %s", alpha_id)
+        return {}
+
+    try:
+        r = response.json()
+        return r
+    except json.JSONDecodeError as e:
+        logger.error("Failed to decode JSON for alpha %s. Error: %s", alpha_id, str(e))
+        logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+        return {}
 
 
 def single_alpha_tune(s:AutoLoginSession, alpha: str, region: str = 'USA', delay: int = 1, universe: str = 'TOP3000'):
