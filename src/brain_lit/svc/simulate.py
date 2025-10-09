@@ -338,20 +338,25 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         url = f"{simulation_url}/{child}"
         response = s.get(url)
 
+        if response.status_code == 504:
+            logger.warning("504 Gateway Timeout for CHILD simulation %s. Retrying...", simulate_id)
+            sleep(5)
+            response = s.get(url)
+
         # 检查子任务响应
         if not response.ok:
-            logger.error("Failed to get child simulation %s. Status code: %s", child, response.status_code)
+            logger.error("Failed to get CHILD simulation %s. Status code: %s", child, response.status_code)
             logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
             continue
 
         if not response.content:
-            logger.error("Empty response received for child simulation %s", child)
+            logger.error("Empty response received for CHILD simulation %s", child)
             continue
 
         try:
             child_response_json = response.json()
         except json.JSONDecodeError as e:
-            logger.error("Failed to decode JSON for child simulation %s. Error: %s", child, str(e))
+            logger.error("Failed to decode JSON for CHILD simulation %s. Error: %s", child, str(e))
             logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
             continue
 
@@ -432,8 +437,9 @@ def get_alpha_one(s: AutoLoginSession, alpha_id, retry=0):
     response = s.get(url)
 
     if response.status_code == 504:
-        logger.error("Timeout error when getting alpha %s", alpha_id)
+        logger.warning("Timeout error when getting alpha %s, retried %s", alpha_id, retry)
         if retry > 3:
+            logger.error("Timeout error when getting alpha %s, retried %s", alpha_id, retry)
             return {}
         return get_alpha_one(s, alpha_id, retry + 1)
     
