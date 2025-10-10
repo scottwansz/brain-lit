@@ -5,6 +5,8 @@ import time
 import random
 import pandas as pd
 
+from brain_lit.svc.check import check_by_query, get_check_and_submit_task_manager
+
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -154,23 +156,6 @@ if st.session_state.get('submittable_alpha_stats'):
     else:
         st.info("暂无可提交的Alpha")
 
-# 提交信息
-st.subheader("提交信息")
-alpha_name = st.text_input("Alpha名称", placeholder="给您的Alpha起个名字")
-alpha_description = st.text_area("Alpha描述", placeholder="简要描述您的Alpha策略逻辑", height=100)
-
-# 提交设置
-st.subheader("提交设置")
-col1, col2 = st.columns(2)
-
-with col1:
-    visibility = st.radio("可见性", ["私有", "团队可见", "公开"], index=0)
-    tags = st.multiselect("标签", ["价值", "动量", "质量", "波动率", "量价"], default=[])
-
-with col2:
-    commission_type = st.selectbox("佣金类型", ["标准", "优惠", "免费"])
-    expected_sharpe = st.number_input("预期夏普比率", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
-
 # 显示Alpha表达式
 st.subheader("待提交的Alpha表达式")
 pending_alpha = st.session_state.get('pending_alpha', '')
@@ -183,27 +168,38 @@ else:
 st.markdown("---")
 col3, col4, col5 = st.columns([1, 1, 4])
 
+task_manager = get_check_and_submit_task_manager()
+
 with col3:
     if st.button("提交Alpha", type="primary"):
-        if pending_alpha and alpha_name:
-            # 模拟提交过程
-            with st.spinner("正在提交Alpha..."):
-                time.sleep(2)  # 模拟提交时间
-            
-            # 生成模拟提交ID
-            submission_id = f"ALPHA-{random.randint(10000, 99999)}"
-            st.success(f"Alpha提交成功！提交ID: {submission_id}")
-            
-            # 清除pending alpha
-            if 'pending_alpha' in st.session_state:
-                del st.session_state.pending_alpha
-            
-            st.info("您可以在Alpha管理页面查看提交状态")
-        elif not alpha_name:
-            st.warning("请输入Alpha名称")
-        else:
-            st.warning("没有待提交的Alpha表达式")
+        # 获取侧边栏条件
+        region = st.session_state.get('selected_region', 'CHN')
+        universe = st.session_state.get('selected_universe', 'TOP2000U')
+        delay = st.session_state.get('selected_delay', 1)
+        phase_value = st.session_state.get('phase_value', '1')
+        sharp_val = st.session_state.get('sharp_threshold', 1.0)
+        fitness_val = st.session_state.get('fitness_threshold', 0.8)
 
-with col4:
-    if st.button("重新编辑"):
-        st.switch_page("pages/1_生成_Alpha.py")
+        # 更新选中的分类
+        selected_category = st.session_state.current_selected_category
+
+        # 提取选中的分类名
+        chosen_category = selected_category.split(" (")[0] if selected_category else None
+
+        query = {
+            "region": region,
+            "universe": universe,
+            "delay": delay,
+            "phase": phase_value,
+            "category": chosen_category,
+        }
+
+        task_manager.start(query=query)
+
+if col4.button("提交状态"):
+    # 显示simulate_tasks信息
+    st.write("当前提交状态信息:")
+    st.json(task_manager.status)
+
+if col5.button("停止提交"):
+    task_manager.status["stop"] = True

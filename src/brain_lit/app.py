@@ -14,6 +14,10 @@ logger = setup_logger()
 
 def main():
     """主应用函数"""
+    # logger.info("********** Before main() called，当前st.session_state内容:")
+    # for key, value in st.session_state.items():
+    #     logger.info(f"- {key}: {value}")
+
     render_main_page()
 
 if __name__ == "__main__":

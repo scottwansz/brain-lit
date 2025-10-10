@@ -16,11 +16,11 @@ class TestMain(unittest.TestCase):
         # logger.info(f"Found {len(records)} submittable records")
 
         query = {
-            "region": "AMR",
-            "universe": "TOP600",
+            "region": "USA",
+            "universe": "TOP3000",
             "delay": "0",
             "phase": "1",
-            "category": "analyst",
+            "category": "sentiment",
         }
 
         task_info = {
@@ -30,9 +30,7 @@ class TestMain(unittest.TestCase):
             "details": "Preparing...",
         }
 
-        session = get_auto_login_session()
-
         # check_alpha(session, 'OgXk5O7', task=task_info)
-        check_by_query(session, query, task=task_info)
+        check_by_query(query, task=task_info)
 
         self.assertEqual(1, 1)

@@ -1,15 +1,37 @@
 import json
+import threading
+
+import streamlit as st
 import time
 
 from brain_lit.logger import setup_logger
 from brain_lit.svc.submit import submit_alpha
 from brain_lit.alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
 from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
-from brain_lit.svc.auth import AutoLoginSession
+from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
 from brain_lit.svc.alpha_query import query_submittable_alpha_details
 from brain_lit.svc.database import update_table
 
 logger = setup_logger(__name__)
+
+@st.cache_resource
+def get_check_and_submit_task_manager():
+    return CheckAndSubmitTaskManager()
+
+
+class CheckAndSubmitTaskManager:
+    def __init__(self):
+        self.session = get_auto_login_session()
+        self.status = {
+            "stop": False,
+            "submitted_count": 0,
+            "progress": 0,
+            "details": "Preparing...",
+        }
+
+    def start(self, query: dict = {}):
+        thread = threading.Thread(target=check_by_query, args=(query, self.status,), daemon=True)
+        thread.start()
 
 
 # def update_brain_alpha(s: AutoLoginSession, alpha_name, alpha_id, alpha_desc=None):
@@ -49,16 +71,16 @@ def check_alpha(s: AutoLoginSession, alpha_id, task={}):
     try_count = 0
     while response.status_code == 504:
         try_count += 1
-        logger.warning("504 Gateway Timeout for CHECK. Retrying...")
+        logger.warning(f"504 Gateway Timeout for CHECK. Retrying...{try_count}")
         time.sleep(1)
         response = s.get(url)
         if try_count > 3:
-            return False, [504, 'Check Failed']
+            return False, [{'name': '504_GATEWAY_TIMEOUT'}]
 
     while "retry-after" in response.headers and not task.get('stop'):
 
         if task.get('stop'):
-            return False, ['Check Stopped manually']
+            return False, [{'name': 'STOPPED_BY_USER'}]
 
         logger.info(f"Alpha {alpha_id} is checking. Waiting...  {round(time.time() - time_start)}")
         time.sleep(60) # float(response.headers["Retry-After"])
@@ -73,11 +95,12 @@ def check_alpha(s: AutoLoginSession, alpha_id, task={}):
 
         return True, fail_reasons
     else:
-        logger.error(f"Failed to check alpha {alpha_id}: {response.status_code}")
-        return False, [response.status_code, 'Check Failed']
+        logger.error(f"Failed to check alpha {alpha_id} status_code: {response.status_code}")
+        logger.error(f"Failed to check alpha {alpha_id} response content: {response.content.decode('utf-8') if response.content else 'Empty response'}")
+        return False, [{'name': f'{response.status_code}_ERROR'}]
 
 
-def check_by_query(session: AutoLoginSession, query_parameters: dict = {}, task={}):
+def check_by_query(query_parameters: dict = {}, task={}):
 
     task.update({
         "batch": 0,
@@ -108,7 +131,7 @@ def check_by_query(session: AutoLoginSession, query_parameters: dict = {}, task=
         alpha_list = query_submittable_alpha_details(**query_parameters)
 
         if len(alpha_list) > 0:
-            done = check_one_batch(session, region, alpha_list, task)
+            done = check_one_batch(region, alpha_list, task)
         else:
             done = True
             task.update({
@@ -121,7 +144,7 @@ def check_by_query(session: AutoLoginSession, query_parameters: dict = {}, task=
     })
 
 
-def check_one_batch(session:AutoLoginSession, region, alpha_list, task):
+def check_one_batch(region, alpha_list, task):
     """
     检查并可能提交一批alpha策略。
 
@@ -136,6 +159,7 @@ def check_one_batch(session:AutoLoginSession, region, alpha_list, task):
     """
     # 初始化已提交计数
     submitted_count = task.get('submitted_count', 0)
+    session = get_auto_login_session()
 
     # 遍历alpha列表
     for i, record in enumerate(alpha_list):
@@ -148,14 +172,18 @@ def check_one_batch(session:AutoLoginSession, region, alpha_list, task):
             })
             return True
 
-        # 更新alpha的脑参数
         if not update_brain_alpha(session, record['alpha_id'], record['name']):
             continue
 
         # 检查alpha策略的有效性
         success, fail_reasons = check_alpha(session, record['alpha_id'], task=task)
         logger.info(f"Alpha {record['alpha_id']} check passed: {len(fail_reasons) == 0}, Fail reasons: {fail_reasons}")
-        # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
+
+        fail_reason_names = [reason.get('name') for reason in fail_reasons]
+        if 'ALREADY_SUBMITTED' in fail_reason_names:
+            # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
+            update_table(f"{region.lower()}_alphas", {'alpha_id': record['alpha_id']}, {'submitted': 1})
+            continue
 
         if success:
             # 检查是否达到常规提交限制 [{'name': 'D0_SUBMISSION', 'result': 'FAIL', 'limit': 30, 'value': 30}, {'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]
@@ -195,6 +223,10 @@ def check_one_batch(session:AutoLoginSession, region, alpha_list, task):
                         return True
                 else:
                     if error in ['REGULAR_SUBMISSION_LIMIT']:
+                        logger.warning("SUBMISSION limit reached, breaking...")
+                        task.update({
+                            "details": "SUBMISSION limit reached",
+                        })
                         return True
 
         # 更新任务进度
