@@ -30,6 +30,9 @@ class CheckAndSubmitTaskManager:
         }
 
     def start(self, query: dict = {}):
+        self.status.update({
+            "stop": False,
+        })
         thread = threading.Thread(target=check_by_query, args=(query, self.status,), daemon=True)
         thread.start()
 
@@ -182,7 +185,11 @@ def check_one_batch(region, alpha_list, task):
         fail_reason_names = [reason.get('name') for reason in fail_reasons]
         if 'ALREADY_SUBMITTED' in fail_reason_names:
             # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
-            update_table(f"{region.lower()}_alphas", {'alpha_id': record['alpha_id']}, {'submitted': 1})
+            update_table(
+                f"{region.lower()}_alphas",
+                {'alpha_id': record['alpha_id']},
+                {'passed': 1, 'submitted': 1}
+            )
             continue
 
         if success:
