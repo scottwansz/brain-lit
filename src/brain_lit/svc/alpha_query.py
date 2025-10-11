@@ -107,7 +107,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
 
 def query_alphas_simulation_stats(region: str, universe: str, delay: int, category: str = None, dataset_ids: List[str] = None) -> List[Dict[str, Any]]:
     """
-    按simulated值进行汇总统计
+    按simulated值和category进行汇总统计
     
     Args:
         region: 地区 (USA, EUR, ASI, CHN, GLB)
@@ -117,7 +117,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         dataset_ids: 数据集ID列表（可选）
         
     Returns:
-        按simulated值分组的统计结果
+        按simulated值和category分组的统计结果
     """
     # 根据地区确定表名
     table_name = f"{region.lower()}_alphas"
@@ -131,7 +131,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         
         # 构建统计查询语句
         query = f"""
-        SELECT simulated, COUNT(*) as count
+        SELECT category, simulated, COUNT(*) as count
         FROM {table_name} 
         WHERE universe = %s AND delay = %s
         """
@@ -148,7 +148,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
             query += f" AND dataset IN ({placeholders})"
             params.extend(dataset_ids)
         
-        query += " GROUP BY simulated ORDER BY count DESC"
+        query += " GROUP BY category, simulated ORDER BY category, simulated"
         
         cursor.execute(query, params)
         results = cursor.fetchall()

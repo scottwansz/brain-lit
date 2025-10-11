@@ -346,6 +346,8 @@ with col8:
             selected_category,
             selected_dataset_ids  # 传入选中的数据集ID列表
         )
+
+        logger.info("simulation_stats: %s", simulation_stats)
         
         # 显示统计信息
         if simulation_stats:
@@ -363,15 +365,34 @@ if st.session_state.get("simulation_stats_data"):
     # 计算总记录数
     stats = st.session_state.simulation_stats_data
     if stats:
-
         # 准备用于水平堆叠条形图的数据
         import pandas as pd
 
         # 转换为DataFrame
         df = pd.DataFrame(stats)
-
-        # 显示条形图，使用simulated列作为颜色分组
-        st.bar_chart(df, x="simulated", y="count", color="simulated", horizontal=True)
+        
+        # 将simulated列转换为整数类型
+        df['simulated'] = df['simulated'].astype(int)
+        
+        # 重塑数据以便于绘图
+        # 将simulated作为列，category作为行
+        pivot_df = df.pivot(index='category', columns='simulated', values='count').fillna(0)
+        
+        # 确保列的顺序为 0, 1, -1, -2
+        desired_order = [0, 1, -1, -2]
+        available_columns = [col for col in desired_order if col in pivot_df.columns]
+        if available_columns:  # 只有当有可用列时才继续
+            pivot_df = pivot_df[available_columns]
+            
+            # 显示水平堆叠条形图，使用category作为y轴，count作为x轴，simulated作为series
+            # 为不同simulated状态手动指定颜色：0使用蓝色，1使用绿色，-1用橙色，-2用红色
+            # 直接使用列名作为颜色映射的键
+            pivot_df.columns = [str(col) for col in pivot_df.columns]
+            colors = ['#3498DB' if col == '0' else '#2ECC71' if col == '1' else '#F39C12' if col == '-1' else '#E74C3C' for col in pivot_df.columns]
+            
+            st.bar_chart(pivot_df, horizontal=True, color=colors)
+        else:
+            st.info("暂无有效的统计数据")
     else:
         st.info("暂无统计数据")
 
