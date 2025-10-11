@@ -10,7 +10,7 @@ from main_page import render_main_page
 from brain_lit.logger import setup_logger
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def main():
     """主应用函数"""

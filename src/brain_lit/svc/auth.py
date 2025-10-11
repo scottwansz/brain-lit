@@ -6,7 +6,7 @@ import streamlit as st
 
 from brain_lit.logger import setup_logger
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 @st.cache_resource
 def get_auto_login_session():
@@ -54,7 +54,7 @@ class AutoLoginSession:
 
         # 发送登录请求
         response = self._session.post('https://api.worldquantbrain.com/authentication')
-        logger.info(response.content)
+        # logger.info(response.content)
 
         if response.status_code != 201:
             logger.error("登录失败: %s/%s", self.username, self.password)
@@ -63,7 +63,7 @@ class AutoLoginSession:
         # 尝试提取用户ID
         try:
             response_json = response.json()
-            logger.info('response_data: %s', response_json)
+            # logger.info('response_data: %s', response_json)
             self.user_id = response_json.get('user', {}).get('id', 'UNKNOWN')
             self.login_refresh_interval = response_json.get('token', {}).get('expiry', 3600 * 4)
         except Exception:

@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from brain_lit.logger import setup_logger
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def validate_credentials(username, password):
     """验证用户凭据（通过实际API调用）"""

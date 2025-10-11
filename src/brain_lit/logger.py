@@ -24,7 +24,7 @@ def setup_logger(name: str = "brain-lit", level: int = logging.INFO) -> logging.
         
         # 创建格式化器，包含模块名和行号
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+            '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s'
         )
         console_handler.setFormatter(formatter)
         

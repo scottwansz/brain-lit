@@ -13,7 +13,7 @@ from brain_lit.svc.database import query_table, update_table
 
 simulation_url = 'https://api.worldquantbrain.com/simulations'
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 lock = threading.Lock()
 
 @st.cache_resource

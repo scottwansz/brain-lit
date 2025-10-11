@@ -12,7 +12,7 @@ from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def format_time_remaining(seconds):
     """格式化剩余时间显示"""

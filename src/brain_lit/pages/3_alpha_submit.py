@@ -15,7 +15,7 @@ from brain_lit.sidebar import render_sidebar
 from brain_lit.svc.alpha_query import query_submittable_alpha_stats, query_submittable_alpha_details
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 # 渲染共享的侧边栏
 render_sidebar()

@@ -6,7 +6,7 @@ from brain_lit.logger import setup_logger
 from brain_lit.svc.auth import get_auto_login_session
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 # 定义地区、延迟和股票池的映射关系
 REGION_PARAMS = {

@@ -11,7 +11,7 @@ from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 # 渲染共享的侧边栏
 render_sidebar()

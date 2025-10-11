@@ -6,7 +6,7 @@ from brain_lit.logger import setup_logger
 from brain_lit.svc.auth import get_auto_login_session
 from brain_lit.svc.database import get_db_connection
 
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 def get_dataset_list(params: dict = None):
     # 获取数据

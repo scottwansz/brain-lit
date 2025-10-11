@@ -12,7 +12,7 @@ from brain_lit.svc.dataset import get_all_datasets, get_used_dataset_ids
 from brain_lit.svc.alpha_query import query_alphas_by_conditions, query_alphas_simulation_stats
 
 # 设置logger
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 # 渲染共享的侧边栏
 render_sidebar()
@@ -347,7 +347,7 @@ with col8:
             selected_dataset_ids  # 传入选中的数据集ID列表
         )
 
-        logger.info("simulation_stats: %s", simulation_stats)
+        # logger.info("simulation_stats: %s", simulation_stats)
         
         # 显示统计信息
         if simulation_stats:
