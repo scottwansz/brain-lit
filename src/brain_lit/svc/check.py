@@ -113,17 +113,8 @@ def check_by_query(query_parameters: dict = {}, task={}):
     })
 
     region = query_parameters.get('region', 'USA')
-    done = False
 
-    while not done:
-
-        if task.get('stop'):
-            task.update({
-                "status": "STOPPED",
-                "details": "Stopped by user"
-            })
-
-            break
+    while not task.get('stop'):
 
         task.update({
             "batch": task.get('batch', 0) + 1,
@@ -134,11 +125,11 @@ def check_by_query(query_parameters: dict = {}, task={}):
         alpha_list = query_submittable_alpha_details(**query_parameters)
 
         if len(alpha_list) > 0:
-            done = check_one_batch(region, alpha_list, task)
+            check_one_batch(region, alpha_list, task)
         else:
-            done = True
             task.update({
                 "status": "COMPLETED",
+                "stop": True,
                 "details": "No more alphas to check"
             })
 
@@ -198,6 +189,11 @@ def check_one_batch(region, alpha_list, task):
             if any(reason.get('name') in submission_limits and reason.get('result') == 'FAIL' for reason in fail_reasons):
             # if fail_reasons == [{'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]:
                 logger.warning("SUBMISSION limit reached, breaking...")
+                task.update({
+                    "status": "COMPLETED",
+                    "stop": True,
+                    "details": "SUBMISSION limit reached"
+                })
                 return True
 
             # 准备要更新的数据

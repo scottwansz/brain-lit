@@ -54,9 +54,10 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region):
     error_already_submitted = {"name": "ALREADY_SUBMITTED", "result": "FAIL"}
     error_throttled = {"detail": "THROTTLED"}
 
-    url = f"\nhttps://api.worldquantbrain.com/alphas/{alpha_id}/submit"
+    url = f"https://api.worldquantbrain.com/alphas/{alpha_id}/submit"
 
     response = s.post(url)  # response.status_code 201 and no response.json()
+    logger.info(f"Submit alpha {alpha_id} status code %s: %s", response.status_code, response.text)
     # print(url, response.status_code, response.text)
     # 400 Bad Request 其它程序正在提交中
     # 403 Forbidden error_reached_quota

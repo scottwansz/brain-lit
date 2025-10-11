@@ -203,3 +203,4 @@ if col4.button("提交状态"):
 
 if col5.button("停止提交"):
     task_manager.status["stop"] = True
+    task_manager.status["details"] = "Stopped by user"
