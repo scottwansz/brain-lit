@@ -35,7 +35,11 @@ class SimulateTaskManager:
 
         if self.simulate_tasks.get(task_id):
             task_info = self.simulate_tasks.get(task_id)
-            task_info['n_tasks_max'] = n_tasks_max
+            task_info.update({
+                "query": query,
+                "stop": False,
+                "n_tasks_max": n_tasks_max,
+            })
             logger.info("Simulate task %s is already running.", task_id)
         else:
             simulate_info = {
