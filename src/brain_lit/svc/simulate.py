@@ -343,8 +343,10 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         url = f"{simulation_url}/{child}"
         response = s.get(url)
 
-        if response.status_code == 504:
-            logger.warning("504 Gateway Timeout for CHILD simulation %s. Retrying...", simulate_id)
+        try_count = 0
+        while response.status_code == 504 and try_count < 5:
+            try_count += 1
+            logger.warning("504 Gateway Timeout for CHILD simulation %s. Retrying... %s", simulate_id, try_count)
             sleep(5)
             response = s.get(url)
 
