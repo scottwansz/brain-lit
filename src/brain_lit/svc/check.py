@@ -26,14 +26,16 @@ class CheckAndSubmitTaskManager:
             "stop": False,
             "submitted_count": 0,
             "progress": 0,
+            "status": "WAITE",
             "details": "Preparing...",
         }
 
-    def start(self, query: dict = {}):
+    def start(self, query: dict):
         self.status.update({
             "stop": False,
+            "query": query,
         })
-        thread = threading.Thread(target=check_by_query, args=(query, self.status,), daemon=True)
+        thread = threading.Thread(target=check_by_query, args=(self.status,), daemon=True)
         thread.start()
 
 
@@ -64,7 +66,7 @@ class CheckAndSubmitTaskManager:
 #         return True
 
 
-def check_alpha(s: AutoLoginSession, alpha_id, task={}):
+def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
     url = f"https://api.worldquantbrain.com/alphas/{alpha_id}/check"
     time_start = time.time()
 
@@ -90,20 +92,24 @@ def check_alpha(s: AutoLoginSession, alpha_id, task={}):
         response = s.get(url)
 
     if response.status_code == 200:
-        data = response.json()
-        # 解析检查结果
-        checks = data.get('is', {}).get('checks', [])
-        # passed = all(item["result"] == "PASS" for item in checks)
-        fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
+        try:
+            data = response.json()
+            # 解析检查结果
+            checks = data.get('is', {}).get('checks', [])
+            # passed = all(item["result"] == "PASS" for item in checks)
+            fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
 
-        return True, fail_reasons
+            return True, fail_reasons
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse response for alpha {alpha_id}")
+            return False, [{'name': 'JSON_DECODE_ERROR'}]
     else:
         logger.error(f"Failed to check alpha {alpha_id} status_code: {response.status_code}")
         logger.error(f"Failed to check alpha {alpha_id} response content: {response.content.decode('utf-8') if response.content else 'Empty response'}")
         return False, [{'name': f'{response.status_code}_ERROR'}]
 
 
-def check_by_query(query_parameters: dict = {}, task={}):
+def check_by_query(task:dict):
 
     task.update({
         "batch": 0,
@@ -112,7 +118,7 @@ def check_by_query(query_parameters: dict = {}, task={}):
         "details": "Preparing...",
     })
 
-    region = query_parameters.get('region', 'USA')
+    region = task.get('query').get('region', 'USA')
 
     while not task.get('stop'):
 
@@ -122,7 +128,7 @@ def check_by_query(query_parameters: dict = {}, task={}):
             "details": "Preparing...",
         })
 
-        alpha_list = query_submittable_alpha_details(**query_parameters)
+        alpha_list = query_submittable_alpha_details(**task.get('query'))
 
         if len(alpha_list) > 0:
             check_one_batch(region, alpha_list, task)

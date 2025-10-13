@@ -293,8 +293,9 @@ def check_simulate_task(session: AutoLoginSession, task_info):
                     error_url = f"{simulation_url}/{child}"
                     logger.error("Error: %s", error_url)
 
-                    error_response = session.get(error_url).json()
-                    logger.error(error_response)
+                    error_response = session.get(error_url)
+                    logger.error("Error response: %s", error_response.status_code)
+                    logger.error("Error response content: %s", error_response.content.decode('utf-8') if error_response.content else "Empty response")
 
         else:
             simulate_info.update(response)
