@@ -192,6 +192,8 @@ with col3:
             "delay": delay,
             "phase": phase_value,
             "category": chosen_category,
+            "sharp_threshold": sharp_val,
+            "fitness_threshold": fitness_val
         }
 
         task_manager.start(query=query)

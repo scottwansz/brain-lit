@@ -138,6 +138,7 @@ def check_by_query(task:dict):
                 "stop": True,
                 "details": "No more alphas to check"
             })
+            logger.info("No more alphas to check and submit")
 
     task.update({
         "status": "COMPLETED",
