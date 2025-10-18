@@ -376,11 +376,6 @@ class FixedWindowCoverageAlphaGenerator:
         """分析字段覆盖率"""
         coverage_stats = {
             "total_fields": len(self.fields),
-            "coverage_distribution": {
-                "high": 0,
-                "medium": 0,
-                "low": 0
-            },
             "field_details": {},
             "window_options": self.backfill_windows
         }
@@ -391,22 +386,12 @@ class FixedWindowCoverageAlphaGenerator:
             # 计算数据缺失天数：250*(1-覆盖率)
             missing_days = 250 * (1 - coverage)
             available_windows = [5, 10, 20, 60, 120, 250]
-            recommended_windows = [next((w for w in available_windows if w > missing_days), 250)]
+            backfill_window = next((w for w in available_windows if w > missing_days), 250)
             
-            # 简化的覆盖率级别计算
-            if coverage >= 0.8:
-                coverage_level = "high"
-            elif coverage >= 0.6:
-                coverage_level = "medium"
-            else:
-                coverage_level = "low"
-
-            coverage_stats["coverage_distribution"][coverage_level] += 1
             coverage_stats["field_details"][field] = {
                 "type": info['type'],
                 "coverage": coverage,
-                "level": coverage_level,
-                "recommended_windows": recommended_windows
+                "backfill_window": backfill_window
             }
 
         return coverage_stats
@@ -418,9 +403,6 @@ class FixedWindowCoverageAlphaGenerator:
 
         advice.append("=== 覆盖率处理建议 ===")
         advice.append(f"字段总数: {stats['total_fields']}")
-        advice.append(f"覆盖率分布: 高({stats['coverage_distribution']['high']}) "
-                      f"中({stats['coverage_distribution']['medium']}) "
-                      f"低({stats['coverage_distribution']['low']})")
 
         advice.append(f"\n可用回填窗口: {self.backfill_windows}")
         advice.append("\n回填策略:")
@@ -428,16 +410,6 @@ class FixedWindowCoverageAlphaGenerator:
         advice.append("  - 从 [5, 10, 20, 60, 120, 250] 中选择大于数据缺失天数的最小窗口")
         advice.append("  - 覆盖率越高，(1-覆盖率)越小，数据缺失天数越少，所选窗口越短")
         advice.append("  - 覆盖率越低，(1-覆盖率)越大，数据缺失天数越多，所选窗口越长")
-
-        advice.append("\n低覆盖率字段处理:")
-        low_coverage_fields = [f for f, info in stats["field_details"].items()
-                               if info['level'] == 'low']
-        if low_coverage_fields:
-            advice.append("  以下字段建议使用长回填窗口:")
-            for field in low_coverage_fields[:3]:
-                info = stats["field_details"][field]
-                advice.append(f"    - {field}: 覆盖率={info['coverage']:.2f}, "
-                              f"推荐窗口={info['recommended_windows']}")
 
         return "\n".join(advice)
 
@@ -485,7 +457,7 @@ def main():
     print(f"\n=== 字段详情 ===")
     for field, info in coverage_stats["field_details"].items():
         print(f"  {field}: {info['type']}, 覆盖率={info['coverage']:.2f}, "
-              f"级别={info['level']}, 推荐窗口={info['recommended_windows']}")
+              f"回填窗口={info['backfill_window']}")
 
     # 测试不同模板
     print(f"\n=== 模板测试 ===")
