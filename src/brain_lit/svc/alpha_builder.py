@@ -110,7 +110,7 @@ class FixedWindowCoverageAlphaGenerator:
             },
 
             "robust_momentum": {
-                "structure": "winsorize(rank(ts_returns({field_expr}, {window})), std=4)",
+                "structure": "winsorize(rank({ts_op}({field_expr}, {window})), std=4)",
                 "description": "稳健动量因子（异常值处理+排名）",
                 "category": "advanced",
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
@@ -168,14 +168,14 @@ class FixedWindowCoverageAlphaGenerator:
             fields.append(field)
         return fields
 
-    def generate_by_template(self, template_name: str, max_expressions: int = 20) -> List[str]:
+    def generate_by_template(self, template_name: str, max_expressions: int = 20) -> Dict[str, List[str]]:
         """根据模板名称生成表达式"""
         if template_name not in self.all_templates:
             raise ValueError(f"未知模板: {template_name}")
 
         template = self.all_templates[template_name]
-        expressions = []
-
+        expressions = {}
+        
         # 根据模板的覆盖率要求筛选字段
         min_coverage = template.get('min_coverage')
         max_coverage = template.get('max_coverage')
@@ -187,62 +187,66 @@ class FixedWindowCoverageAlphaGenerator:
 
         try:
             if template_name == "residual_momentum":
-                expressions = self._generate_residual_template(template, suitable_fields, max_expressions)
+                expressions = self._generate_residual_template_with_fields(template, suitable_fields, max_expressions)
+            elif template_name == "robust_momentum":
+                expressions = self._generate_robust_momentum_template_with_fields(template, suitable_fields, max_expressions)
             elif template_name == "coverage_conditional":
-                expressions = self._generate_coverage_conditional_template(template, suitable_fields, max_expressions)
+                expressions = self._generate_coverage_conditional_template_with_fields(template, suitable_fields, max_expressions)
             elif "volatility_adjusted" in template_name:
-                expressions = self._generate_volatility_adjusted_template(template, suitable_fields, max_expressions)
+                expressions = self._generate_volatility_adjusted_template_with_fields(template, suitable_fields, max_expressions)
             elif "cross_sectional" in template_name:
-                expressions = self._generate_cross_sectional_template(template, suitable_fields, max_expressions)
+                expressions = self._generate_cross_sectional_template_with_fields(template, suitable_fields, max_expressions)
             else:
-                expressions = self._generate_basic_template(template, suitable_fields, max_expressions)
+                expressions = self._generate_basic_template_with_fields(template, suitable_fields, max_expressions)
 
         except Exception as e:
             print(f"生成模板 {template_name} 时出错: {e}")
 
-        return expressions[:max_expressions]
+        return expressions
 
-    def _generate_basic_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
-        """生成基础模板表达式"""
-        expressions = []
+    def _generate_basic_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成基础模板表达式，返回带字段信息的结构"""
+        expressions = {}
 
         for field in fields:
             field_info = self.fields[field]
             field_expr = template["field_processing"](field, field_info)
+            expressions[field] = []
 
             for ts_op in template["suitable_ts_ops"]:
                 if "suitable_windows" in template:
                     for window in template["suitable_windows"]:
-                        if len(expressions) >= max_expr:
-                            return expressions
+                        if len(expressions[field]) >= max_expr:
+                            break
                         expr = template["structure"].format(
                             ts_op=ts_op, field_expr=field_expr, window=window
                         )
-                        expressions.append(expr)
+                        expressions[field].append(expr)
                 elif "suitable_windows_pairs" in template:
                     for window1, window2 in template["suitable_windows_pairs"]:
-                        if len(expressions) >= max_expr:
-                            return expressions
+                        if len(expressions[field]) >= max_expr:
+                            break
                         expr = template["structure"].format(
                             ts_op=ts_op, field_expr=field_expr, window1=window1, window2=window2
                         )
-                        expressions.append(expr)
+                        expressions[field].append(expr)
 
         return expressions
 
-    def _generate_cross_sectional_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
-        """生成横截面模板表达式"""
-        expressions = []
+    def _generate_cross_sectional_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成横截面模板表达式，返回带字段信息的结构"""
+        expressions = {}
 
         for field in fields:
             field_info = self.fields[field]
             field_expr = template["field_processing"](field, field_info)
+            expressions[field] = []
 
             for cs_op in template["suitable_cs_ops"]:
                 for ts_op in template["suitable_ts_ops"]:
                     for window in template["suitable_windows"]:
-                        if len(expressions) >= max_expr:
-                            return expressions
+                        if len(expressions[field]) >= max_expr:
+                            break
 
                         expr = template["structure"].format(
                             cs_op=cs_op,
@@ -250,65 +254,109 @@ class FixedWindowCoverageAlphaGenerator:
                             field_expr=field_expr,
                             window=window
                         )
-                        expressions.append(expr)
+                        expressions[field].append(expr)
 
         return expressions
 
-    def _generate_volatility_adjusted_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
-        """生成波动率调整模板表达式"""
-        expressions = []
+    def _generate_volatility_adjusted_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成波动率调整模板表达式，返回带字段信息的结构"""
+        expressions = {}
 
         for field in fields:
             field_info = self.fields[field]
             field_expr = template["field_processing"](field, field_info)
+            expressions[field] = []
 
             for ts_op in template["suitable_ts_ops"]:
                 for window1, window2 in template["suitable_windows_pairs"]:
-                    if len(expressions) >= max_expr:
-                        return expressions
+                    if len(expressions[field]) >= max_expr:
+                        break
 
                     expr = template["structure"].format(
                         ts_op=ts_op, field_expr=field_expr, window1=window1, window2=window2
                     )
-                    expressions.append(expr)
+                    expressions[field].append(expr)
 
         return expressions
 
-    def _generate_residual_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
-        """生成残差模板表达式"""
-        expressions = []
+    def _generate_residual_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成残差模板表达式，返回带字段信息的结构"""
+        expressions = {}
 
-        for field1, field2 in template["suitable_field_pairs"]:
-            for window in template["suitable_windows"]:
-                if len(expressions) >= max_expr:
-                    return expressions
+        # 确保 suitable_field_pairs 存在
+        if "suitable_field_pairs" not in template:
+            template["suitable_field_pairs"] = self._generate_field_pairs()
 
-                # 处理两个字段
-                field1_info = self.fields[field1]
-                field1_expr = template["field_processing"](field1, field1_info)
-                field2_info = self.fields[field2]
-                field2_expr = template["field_processing"](field2, field2_info)
+        for field_pair in template["suitable_field_pairs"]:
+            if len(field_pair) >= 2:
+                field1, field2 = field_pair[0], field_pair[1]
+            else:
+                continue
+                
+            # 处理两个字段
+            field1_info = self.fields.get(field1, {})
+            field2_info = self.fields.get(field2, {})
+            
+            # 如果字段不存在，跳过
+            if not field1_info or not field2_info:
+                continue
+                
+            field1_expr = template["field_processing"](field1, field1_info)
+            field2_expr = template["field_processing"](field2, field2_info)
+            
+            # 以第一个字段作为主字段
+            if field1 not in expressions:
+                expressions[field1] = []
+            
+            for window in template.get("suitable_windows", [10, 20, 60]):
+                if len(expressions[field1]) >= max_expr:
+                    break
 
                 expr = template["structure"].format(
                     field_y=field1_expr, field_x=field2_expr, window=window
                 )
-                expressions.append(expr)
+                expressions[field1].append(expr)
 
         return expressions
 
-    def _generate_coverage_conditional_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
-        """生成覆盖率条件模板表达式"""
-        expressions = []
+    def _generate_robust_momentum_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成稳健动量模板表达式，返回带字段信息的结构"""
+        expressions = {}
 
         for field in fields:
             field_info = self.fields[field]
             field_expr = template["field_processing"](field, field_info)
+            expressions[field] = []
 
-            if len(expressions) >= max_expr:
-                return expressions
+            # 处理适合的时间序列操作和窗口
+            suitable_ts_ops = template.get("suitable_ts_ops", ["ts_returns"])
+            suitable_windows = template.get("suitable_windows", [5, 10, 20])
+            
+            for ts_op in suitable_ts_ops:
+                for window in suitable_windows:
+                    if len(expressions[field]) >= max_expr:
+                        break
+                        
+                    expr = template["structure"].format(
+                        ts_op=ts_op, field_expr=field_expr, window=window
+                    )
+                    expressions[field].append(expr)
+
+        return expressions
+
+    def _generate_coverage_conditional_template_with_fields(self, template: Dict, fields: List[str], max_expr: int) -> Dict[str, List[str]]:
+        """生成覆盖率条件模板表达式，返回带字段信息的结构"""
+        expressions = {}
+
+        for field in fields:
+            field_info = self.fields[field]
+            field_expr = template["field_processing"](field, field_info)
+            
+            if field not in expressions:
+                expressions[field] = []
 
             expr = template["structure"].format(field_expr=field_expr)
-            expressions.append(expr)
+            expressions[field].append(expr)
 
         return expressions
 
@@ -331,7 +379,9 @@ class FixedWindowCoverageAlphaGenerator:
                 break
             template_exprs = self.generate_by_template(template_name, per_template)
             print(f"基础模板 '{template_name}' 生成 {len(template_exprs)} 个表达式")
-            expressions.extend(template_exprs)
+            # 修复：从返回的字典中提取表达式
+            for field_exprs in template_exprs.values():
+                expressions.extend(field_exprs)
 
         # 生成高级模板表达式
         for template_name in advanced_templates:
@@ -339,7 +389,9 @@ class FixedWindowCoverageAlphaGenerator:
                 break
             template_exprs = self.generate_by_template(template_name, per_template)
             print(f"高级模板 '{template_name}' 生成 {len(template_exprs)} 个表达式")
-            expressions.extend(template_exprs)
+            # 修复：从返回的字典中提取表达式
+            for field_exprs in template_exprs.values():
+                expressions.extend(field_exprs)
 
         # 如果数量不够，补充简单表达式
         if len(expressions) < count:
@@ -347,6 +399,39 @@ class FixedWindowCoverageAlphaGenerator:
             expressions.extend(additional)
 
         return expressions[:count]
+
+    def generate_diverse_expressions_by_field(self, count: int = 30) -> Dict[str, Dict[str, List[str]]]:
+        """生成多样化的表达式集合，按字段和模板组织"""
+        all_expressions = {}
+
+        # 按模板类别分配数量
+        basic_templates = [name for name, template in self.all_templates.items()
+                           if template["category"] == "basic"]
+        advanced_templates = [name for name, template in self.all_templates.items()
+                              if template["category"] == "advanced"]
+
+        templates_count = len(basic_templates) + len(advanced_templates)
+        per_template = max(5, count // templates_count)  # 增加每个模板的表达式数量
+
+        # 生成基础模板表达式
+        for template_name in basic_templates:
+            template_exprs = self.generate_by_template(template_name, per_template)
+            # 合并到all_expressions中
+            for field, exprs in template_exprs.items():
+                if field not in all_expressions:
+                    all_expressions[field] = {}
+                all_expressions[field][template_name] = exprs
+
+        # 生成高级模板表达式
+        for template_name in advanced_templates:
+            template_exprs = self.generate_by_template(template_name, per_template)
+            # 合并到all_expressions中
+            for field, exprs in template_exprs.items():
+                if field not in all_expressions:
+                    all_expressions[field] = {}
+                all_expressions[field][template_name] = exprs
+
+        return all_expressions
 
     def _generate_simple_expressions(self, count: int) -> List[str]:
         """生成简单的备用表达式"""
@@ -467,20 +552,34 @@ def main():
     for template_name in basic_templates[:2]:
         print(f"\n{template_name} 表达式:")
         exprs = generator.generate_by_template(template_name, 3)
-        for i, expr in enumerate(exprs, 1):
-            print(f"  {i}. {expr}")
+        for field, field_exprs in exprs.items():
+            print(f"  {field}")
+            for i, expr in enumerate(field_exprs[:3], 1):
+                print(f"    {i}. {expr}")
 
     # 高级模板测试
     advanced_templates = ["residual_momentum", "robust_momentum"]
     for template_name in advanced_templates[:2]:
         print(f"\n{template_name} 表达式:")
         exprs = generator.generate_by_template(template_name, 3)
-        for i, expr in enumerate(exprs, 1):
-            print(f"  {i}. {expr}")
+        for field, field_exprs in exprs.items():
+            print(f"  {field}")
+            for i, expr in enumerate(field_exprs[:3], 1):
+                print(f"    {i}. {expr}")
 
     print(f"\n=== 多样化表达式生成 ===")
     diverse_exprs = generator.generate_diverse_expressions(20)
+    diverse_exprs_by_field = generator.generate_diverse_expressions_by_field(20)
     print(f"生成 {len(diverse_exprs)} 个多样化表达式")
+    
+    # 显示按字段和模板组织的表达式
+    print("\n=== 按字段和模板组织的表达式 ===")
+    for field, templates in diverse_exprs_by_field.items():
+        print(f"\n字段: {field}")
+        for template, exprs in templates.items():
+            print(f"  模板 '{template}': {len(exprs)} 个表达式")
+            for i, expr in enumerate(exprs[:3], 1):  # 只显示前3个
+                print(f"    {i}. {expr}")
 
     # 统计窗口使用情况
     window_stats = generator.get_window_usage_stats(diverse_exprs)
@@ -491,7 +590,8 @@ def main():
 
     # 显示一些示例
     print("\n示例表达式:")
-    for i, expr in enumerate(diverse_exprs[:6], 1):
+    sample_expressions = diverse_exprs[:6] if isinstance(diverse_exprs, list) else list(diverse_exprs.keys())[:6]
+    for i, expr in enumerate(sample_expressions, 1):
         print(f"  {i}. {expr}")
 
 
