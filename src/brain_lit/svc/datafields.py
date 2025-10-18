@@ -44,12 +44,8 @@ def get_data_fields(dataset_id='other699', delay=0, instrument_type='EQUITY', li
     response.raise_for_status()
     
     # 解析响应数据并构造以id为key，type为value的字典
-    data = response.json()
-    result = {}
-    for item in data.get('results', []):
-        result[item['id']] = item['type']
-    
-    return result
+    res_json = response.json()
+    return {item['id']: {'type': item['type'], 'coverage': item['coverage']} for item in res_json.get('results', [])}
 
 
 def get_all_data_fields(dataset_id='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600'):
@@ -95,14 +91,14 @@ def get_all_data_fields(dataset_id='other699', delay=0, instrument_type='EQUITY'
         response.raise_for_status()
         
         # 解析响应数据
-        data = response.json()
+        res_json = response.json()
         
         # 将当前页的数据添加到结果字典中
-        for item in data.get('results', []):
-            result[item['id']] = item['type']
+        batch_dict = {item['id']: {'type': item['type'], 'coverage': item['coverage']} for item in res_json.get('results', [])}
+        result.update(batch_dict)
         
         # 检查是否还有更多数据
-        if len(data.get('results', [])) < limit:
+        if len(res_json.get('results', [])) < limit:
             # 如果当前页返回的数据少于限制数量，说明已经到最后一页
             break
         
@@ -117,5 +113,5 @@ if __name__ == "__main__":
     python -c "from src.brain_lit.svc.datafields import get_all_data_fields; data = get_all_data_fields(dataset_id='analyst11'); print(data)"
     """
     # 调用函数并打印结果
-    data = get_data_fields()
-    print(data)
+    fields_dict = get_data_fields(dataset_id='other699')
+    print(fields_dict)

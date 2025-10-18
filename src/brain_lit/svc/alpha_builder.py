@@ -2,30 +2,50 @@ import random
 from typing import List, Dict
 
 
-class FixedUnifiedAlphaGenerator:
-    def __init__(self, alpha_data: List[Dict], fields: Dict[str, str]):
+class FixedWindowCoverageAlphaGenerator:
+    def __init__(self, alpha_data: List[Dict], fields: Dict[str, Dict]):
+        """
+        Args:
+            alpha_data: Alpha操作符数据
+            fields: 字段信息字典，格式为 {'field_name': {'type': 'MATRIX', 'coverage': 0.58}, ...}
+        """
         self.alpha_data = alpha_data
         self.fields = fields
         self.categorized_ops = self._categorize_operators()
-        self.all_templates = self._create_fixed_templates()
+        self.all_templates = self._create_optimized_templates()
+
+        # 固定的回填窗口选项
+        self.backfill_windows = [5, 10, 20, 60, 120, 250]
+
+        # 覆盖率阈值配置
+        self.coverage_thresholds = {
+            'high': 0.8,  # 高覆盖率：日度或更高频率数据
+            'medium': 0.6,  # 中等覆盖率：周度或月度数据
+            'low': 0.4  # 低覆盖率：季度或年度数据
+        }
+
+        # 覆盖率级别对应的窗口选择范围
+        self.coverage_window_mapping = {
+            'high': [5, 10, 20],  # 高覆盖率：短窗口
+            'medium': [20, 60],  # 中等覆盖率：中等窗口
+            'low': [120, 250]  # 低覆盖率：长窗口
+        }
 
     def _categorize_operators(self) -> Dict[str, List[str]]:
-        """分类所有操作符"""
+        """分类操作符"""
         return {
-            "vector": ["vec_avg", "vec_sum", "vec_max", "vec_min", "vec_count"],
+            "vector": ["vec_avg", "vec_sum", "vec_max", "vec_min"],
             "ts_trend": ["ts_returns", "ts_delta", "ts_moment", "ts_regression"],
             "ts_mean_reversion": ["ts_zscore", "ts_av_diff", "ts_scale", "ts_rank"],
             "ts_volatility": ["ts_std_dev", "ts_entropy"],
-            "ts_extremes": ["ts_max", "ts_min", "ts_arg_max", "ts_arg_min"],
-            "ts_backfill": ["ts_backfill"],
-            "cs_ranking": ["rank", "quantile", "scale"],
-            "cs_normalization": ["zscore", "normalize", "winsorize"],
-            "arithmetic": ["add", "subtract", "multiply", "divide"],
+            "ts_backfill": ["ts_backfill", "kth_element", "group_backfill"],
+            "coverage_handling": ["ts_backfill", "kth_element", "group_backfill", "is_nan", "days_from_last_change"],
+            "outlier_handling": ["winsorize", "truncate", "rank", "zscore", "normalize", "scale"],
             "group_ops": ["group_neutralize", "group_rank", "group_zscore"]
         }
 
-    def _create_fixed_templates(self) -> Dict[str, Dict]:
-        """创建修复后的模板系统"""
+    def _create_optimized_templates(self) -> Dict[str, Dict]:
+        """创建优化后的模板系统"""
 
         # 基础模板
         basic_templates = {
@@ -35,7 +55,7 @@ class FixedUnifiedAlphaGenerator:
                 "category": "basic",
                 "suitable_ts_ops": self.categorized_ops["ts_trend"],
                 "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             },
 
             "mean_reversion": {
@@ -44,7 +64,7 @@ class FixedUnifiedAlphaGenerator:
                 "category": "basic",
                 "suitable_ts_ops": ["ts_zscore", "ts_av_diff", "ts_rank"],
                 "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             },
 
             "volatility_adjusted": {
@@ -53,7 +73,7 @@ class FixedUnifiedAlphaGenerator:
                 "category": "basic",
                 "suitable_ts_ops": ["ts_delta", "ts_returns", "ts_av_diff"],
                 "suitable_windows_pairs": [(5, 10), (10, 20), (20, 20)],
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             },
 
             "cross_sectional": {
@@ -63,11 +83,11 @@ class FixedUnifiedAlphaGenerator:
                 "suitable_cs_ops": ["rank", "zscore", "scale"],
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
                 "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             }
         }
 
-        # 高级模板 - 修复 sector_neutral
+        # 高级模板
         advanced_templates = {
             "residual_momentum": {
                 "structure": "ts_regression({field_y}, {field_x}, {window}, 0, 1)",
@@ -75,100 +95,106 @@ class FixedUnifiedAlphaGenerator:
                 "category": "advanced",
                 "suitable_windows": [10, 20, 60],
                 "suitable_field_pairs": self._generate_field_pairs(),
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             },
 
-            "sector_neutral": {
-                "structure": "group_neutralize({cs_op}({ts_op}({field_expr}, {window})), sector)",
-                "description": "行业中性化因子",
+            "coverage_conditional": {
+                "structure": "group_count(is_nan({field_expr}), market) > 40 ? {field_expr} : nan",
+                "description": "覆盖率条件因子（检测异常下降）",
                 "category": "advanced",
-                "suitable_cs_ops": ["rank", "zscore", "scale"],  # 添加 cs_op 选择
+                "field_processing": self._process_field_by_coverage
+            },
+
+            "sector_neutral_robust": {
+                "structure": "group_neutralize(rank(winsorize({ts_op}({field_expr}, {window}), std=4)), sector)",
+                "description": "稳健行业中性因子",
+                "category": "advanced",
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
                 "suitable_windows": [10, 20],
-                "requires_group": True,
-                "field_processing": self._process_field_by_type
+                "field_processing": self._process_field_by_coverage
             },
 
-            "quality_factor": {
-                "structure": "add({field1}, {field2}, {field3})",
-                "description": "多维度质量因子",
+            "distribution_normalized": {
+                "structure": "scale(rank({ts_op}({field_expr}, {window})), longscale=0.8, shortscale=0.8)",
+                "description": "分布标准化因子（控制多头空头权重）",
                 "category": "advanced",
-                "field_processing": self._process_field_by_type
+                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
+                "suitable_windows": [5, 10, 20],
+                "field_processing": self._process_field_by_coverage
+            },
+
+            "robust_momentum": {
+                "structure": "winsorize(rank(ts_returns({field_expr}, {window})), std=4)",
+                "description": "稳健动量因子（异常值处理+排名）",
+                "category": "advanced",
+                "suitable_windows": [5, 10, 20],
+                "field_processing": self._process_field_by_coverage
             }
         }
 
-        # 修复的固定回填模板
-        fixed_backfill_templates = {
-            "fixed_backfill_core": {
-                "structure": "{outer_ts_func}(winsorize(ts_backfill({field_expr}, {backfill_window}), std={std}), {outer_window})",
-                "description": "固定回填+去极值+灵活外层函数",
-                "category": "fixed_backfill",
-                "fixed_components": ["ts_backfill", "winsorize"],
-                "flexible_components": {
-                    "outer_ts_func": ["ts_delta", "ts_returns", "ts_zscore", "ts_rank", "ts_scale"]
-                },
-                "parameters": {
-                    "std": [4],
-                    "backfill_windows": [120, 250],
-                    "outer_windows": [120, 240, 60, 20]  # 修复窗口参数
-                },
-                "field_processing": self._process_field_by_type
-            },
-
-            "fixed_backfill_with_middle": {
-                "structure": "{outer_ts_func}({middle_func}(winsorize(ts_backfill({field_expr}, {backfill_window}), std={std})), {outer_window})",
-                "description": "固定回填+去极值+中间处理+灵活外层函数",
-                "category": "fixed_backfill",
-                "fixed_components": ["ts_backfill", "winsorize"],
-                "middle_functions": ["normalize", "purify"],
-                "flexible_components": {
-                    "outer_ts_func": ["ts_delta", "ts_returns", "ts_zscore"]
-                },
-                "parameters": {
-                    "std": [4],
-                    "backfill_windows": [120, 250],
-                    "outer_windows": [120, 60, 20]
-                },
-                "field_processing": self._process_field_by_type
-            },
-
-            "fixed_backfill_cross_section": {
-                "structure": "{cs_func}({outer_ts_func}(winsorize(ts_backfill({field_expr}, {backfill_window}), std={std}), {outer_window}))",
-                "description": "固定回填+去极值+灵活外层函数+横截面处理",
-                "category": "fixed_backfill",
-                "fixed_components": ["ts_backfill", "winsorize"],
-                "cross_section_funcs": ["rank", "zscore"],
-                "flexible_components": {
-                    "outer_ts_func": ["ts_delta", "ts_returns", "ts_zscore"]
-                },
-                "parameters": {
-                    "std": [4],
-                    "backfill_windows": [120, 250],
-                    "outer_windows": [120, 60, 20]
-                },
-                "field_processing": self._process_field_by_type
-            }
-        }
-
-        return {**basic_templates, **advanced_templates, **fixed_backfill_templates}
+        return {**basic_templates, **advanced_templates}
 
     def _generate_field_pairs(self) -> List[tuple]:
         """生成有意义的字段对"""
         fields = list(self.fields.keys())
         pairs = []
-        for f1 in fields[:3]:  # 限制数量
+        for f1 in fields[:3]:
             for f2 in fields[:3]:
                 if f1 != f2:
                     pairs.append((f1, f2))
         return pairs
 
-    def _process_field_by_type(self, field: str, field_type: str) -> str:
-        """根据字段类型处理字段表达式"""
+    def _process_field_by_coverage(self, field: str, field_info: Dict) -> str:
+        """
+        根据字段覆盖率和类型处理字段表达式
+        使用固定的回填窗口选项 [5, 10, 20, 60, 120, 250]
+        """
+        field_type = field_info['type']
+        coverage = field_info.get('coverage', 1.0)
+
+        # 处理字段类型
         if field_type == "VECTOR":
             vector_ops = ["vec_avg", "vec_sum", "vec_max"]
-            return f"{random.choice(vector_ops)}({field})"
+            field_expr = f"{random.choice(vector_ops)}({field})"
         else:
-            return field
+            field_expr = field
+
+        # 根据覆盖率选择回填窗口
+        # 计算更新频率：250*(1-覆盖率)
+        update_frequency = 250 * (1 - coverage)
+        # 在[5,10,20,120,250]中找到比它大的最小数作为回填窗口
+        available_windows = [5, 10, 20, 120, 250]
+        backfill_window = next((w for w in available_windows if w > update_frequency), 250)
+
+        field_expr = f"ts_backfill({field_expr}, {backfill_window})"
+
+        return field_expr
+
+    def get_fields_by_coverage(self, min_coverage: float = None, max_coverage: float = None) -> List[str]:
+        """根据覆盖率获取字段"""
+        fields = []
+        for field, info in self.fields.items():
+            coverage = info.get('coverage', 1.0)
+            if min_coverage is not None and coverage < min_coverage:
+                continue
+            if max_coverage is not None and coverage > max_coverage:
+                continue
+            fields.append(field)
+        return fields
+
+    def get_coverage_level(self, coverage: float) -> str:
+        """获取覆盖率级别"""
+        if coverage >= self.coverage_thresholds['high']:
+            return "high"
+        elif coverage >= self.coverage_thresholds['medium']:
+            return "medium"
+        else:
+            return "low"
+
+    def get_recommended_backfill_windows(self, coverage: float) -> List[int]:
+        """根据覆盖率推荐回填窗口范围"""
+        coverage_level = self.get_coverage_level(coverage)
+        return self.coverage_window_mapping[coverage_level]
 
     def generate_by_template(self, template_name: str, max_expressions: int = 20) -> List[str]:
         """根据模板名称生成表达式"""
@@ -178,119 +204,67 @@ class FixedUnifiedAlphaGenerator:
         template = self.all_templates[template_name]
         expressions = []
 
+        # 根据模板的覆盖率要求筛选字段
+        min_coverage = template.get('min_coverage')
+        max_coverage = template.get('max_coverage')
+        suitable_fields = self.get_fields_by_coverage(min_coverage, max_coverage)
+
+        if not suitable_fields:
+            print(f"模板 {template_name} 没有找到合适的字段（覆盖率要求: min={min_coverage}, max={max_coverage}）")
+            return expressions
+
         try:
-            if template["category"] == "fixed_backfill":
-                expressions = self._generate_fixed_backfill_template(template, max_expressions)
-            elif template_name == "residual_momentum":
-                expressions = self._generate_residual_template(template, max_expressions)
-            elif template_name == "sector_neutral":
-                expressions = self._generate_sector_neutral_template(template, max_expressions)
-            elif template_name == "quality_factor":
-                expressions = self._generate_quality_template(template, max_expressions)
+            if template_name == "residual_momentum":
+                expressions = self._generate_residual_template(template, suitable_fields, max_expressions)
+            elif template_name == "coverage_conditional":
+                expressions = self._generate_coverage_conditional_template(template, suitable_fields, max_expressions)
             elif "volatility_adjusted" in template_name:
-                expressions = self._generate_volatility_adjusted_template(template, max_expressions)
+                expressions = self._generate_volatility_adjusted_template(template, suitable_fields, max_expressions)
             elif "cross_sectional" in template_name:
-                expressions = self._generate_cross_sectional_template(template, max_expressions)
+                expressions = self._generate_cross_sectional_template(template, suitable_fields, max_expressions)
             else:
-                expressions = self._generate_basic_template(template, max_expressions)
+                expressions = self._generate_basic_template(template, suitable_fields, max_expressions)
 
         except Exception as e:
             print(f"生成模板 {template_name} 时出错: {e}")
-            import traceback
-            traceback.print_exc()
 
         return expressions[:max_expressions]
 
-    def _generate_fixed_backfill_template(self, template: Dict, max_expr: int) -> List[str]:
-        """生成固定回填模板表达式 - 修复版本"""
-        expressions = []
-        fields = list(self.fields.keys())
-        parameters = template["parameters"]
-        outer_funcs = template["flexible_components"]["outer_ts_func"]
-
-        for field in fields:
-            field_type = self.fields[field]
-            field_expr = template["field_processing"](field, field_type)
-
-            for outer_func in outer_funcs:
-                for backfill_window in parameters["backfill_windows"]:
-                    for outer_window in parameters["outer_windows"]:
-                        for std in parameters["std"]:
-                            if len(expressions) >= max_expr:
-                                return expressions
-
-                            # 处理中间函数
-                            if "middle_functions" in template:
-                                for middle_func in template["middle_functions"]:
-                                    expr = template["structure"].format(
-                                        outer_ts_func=outer_func,
-                                        middle_func=middle_func,
-                                        field_expr=field_expr,
-                                        backfill_window=backfill_window,
-                                        std=std,
-                                        outer_window=outer_window
-                                    )
-                                    expressions.append(expr)
-                                    if len(expressions) >= max_expr:
-                                        return expressions
-                            # 处理横截面函数
-                            elif "cross_section_funcs" in template:
-                                for cs_func in template["cross_section_funcs"]:
-                                    expr = template["structure"].format(
-                                        cs_func=cs_func,
-                                        outer_ts_func=outer_func,
-                                        field_expr=field_expr,
-                                        backfill_window=backfill_window,
-                                        std=std,
-                                        outer_window=outer_window
-                                    )
-                                    expressions.append(expr)
-                                    if len(expressions) >= max_expr:
-                                        return expressions
-                            else:
-                                # 基础版本
-                                expr = template["structure"].format(
-                                    outer_ts_func=outer_func,
-                                    field_expr=field_expr,
-                                    backfill_window=backfill_window,
-                                    std=std,
-                                    outer_window=outer_window
-                                )
-                                expressions.append(expr)
-
-        return expressions
-
-    def _generate_basic_template(self, template: Dict, max_expr: int) -> List[str]:
+    def _generate_basic_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
         """生成基础模板表达式"""
         expressions = []
-        fields = list(self.fields.keys())
 
         for field in fields:
-            field_type = self.fields[field]
-            field_expr = template["field_processing"](field, field_type)
+            field_info = self.fields[field]
+            field_expr = template["field_processing"](field, field_info)
 
             for ts_op in template["suitable_ts_ops"]:
-                for window in template["suitable_windows"]:
-                    if len(expressions) >= max_expr:
-                        return expressions
-
-                    expr = template["structure"].format(
-                        ts_op=ts_op,
-                        field_expr=field_expr,
-                        window=window
-                    )
-                    expressions.append(expr)
+                if "suitable_windows" in template:
+                    for window in template["suitable_windows"]:
+                        if len(expressions) >= max_expr:
+                            return expressions
+                        expr = template["structure"].format(
+                            ts_op=ts_op, field_expr=field_expr, window=window
+                        )
+                        expressions.append(expr)
+                elif "suitable_windows_pairs" in template:
+                    for window1, window2 in template["suitable_windows_pairs"]:
+                        if len(expressions) >= max_expr:
+                            return expressions
+                        expr = template["structure"].format(
+                            ts_op=ts_op, field_expr=field_expr, window1=window1, window2=window2
+                        )
+                        expressions.append(expr)
 
         return expressions
 
-    def _generate_sector_neutral_template(self, template: Dict, max_expr: int) -> List[str]:
-        """生成行业中性化模板表达式 - 修复版本"""
+    def _generate_cross_sectional_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
+        """生成横截面模板表达式"""
         expressions = []
-        fields = list(self.fields.keys())
 
         for field in fields:
-            field_type = self.fields[field]
-            field_expr = template["field_processing"](field, field_type)
+            field_info = self.fields[field]
+            field_expr = template["field_processing"](field, field_info)
 
             for cs_op in template["suitable_cs_ops"]:
                 for ts_op in template["suitable_ts_ops"]:
@@ -308,14 +282,13 @@ class FixedUnifiedAlphaGenerator:
 
         return expressions
 
-    def _generate_volatility_adjusted_template(self, template: Dict, max_expr: int) -> List[str]:
+    def _generate_volatility_adjusted_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
         """生成波动率调整模板表达式"""
         expressions = []
-        fields = list(self.fields.keys())
 
         for field in fields:
-            field_type = self.fields[field]
-            field_expr = template["field_processing"](field, field_type)
+            field_info = self.fields[field]
+            field_expr = template["field_processing"](field, field_info)
 
             for ts_op in template["suitable_ts_ops"]:
                 for window1, window2 in template["suitable_windows_pairs"]:
@@ -323,41 +296,13 @@ class FixedUnifiedAlphaGenerator:
                         return expressions
 
                     expr = template["structure"].format(
-                        ts_op=ts_op,
-                        field_expr=field_expr,
-                        window1=window1,
-                        window2=window2
+                        ts_op=ts_op, field_expr=field_expr, window1=window1, window2=window2
                     )
                     expressions.append(expr)
 
         return expressions
 
-    def _generate_cross_sectional_template(self, template: Dict, max_expr: int) -> List[str]:
-        """生成横截面模板表达式"""
-        expressions = []
-        fields = list(self.fields.keys())
-
-        for field in fields:
-            field_type = self.fields[field]
-            field_expr = template["field_processing"](field, field_type)
-
-            for cs_op in template["suitable_cs_ops"]:
-                for ts_op in template["suitable_ts_ops"]:
-                    for window in template["suitable_windows"]:
-                        if len(expressions) >= max_expr:
-                            return expressions
-
-                        expr = template["structure"].format(
-                            cs_op=cs_op,
-                            ts_op=ts_op,
-                            field_expr=field_expr,
-                            window=window
-                        )
-                        expressions.append(expr)
-
-        return expressions
-
-    def _generate_residual_template(self, template: Dict, max_expr: int) -> List[str]:
+    def _generate_residual_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
         """生成残差模板表达式"""
         expressions = []
 
@@ -366,62 +311,63 @@ class FixedUnifiedAlphaGenerator:
                 if len(expressions) >= max_expr:
                     return expressions
 
+                # 处理两个字段
+                field1_info = self.fields[field1]
+                field1_expr = template["field_processing"](field1, field1_info)
+                field2_info = self.fields[field2]
+                field2_expr = template["field_processing"](field2, field2_info)
+
                 expr = template["structure"].format(
-                    field_y=field1, field_x=field2, window=window
+                    field_y=field1_expr, field_x=field2_expr, window=window
                 )
                 expressions.append(expr)
 
         return expressions
 
-    def _generate_quality_template(self, template: Dict, max_expr: int) -> List[str]:
-        """生成质量因子模板表达式"""
+    def _generate_coverage_conditional_template(self, template: Dict, fields: List[str], max_expr: int) -> List[str]:
+        """生成覆盖率条件模板表达式"""
         expressions = []
-        fields = list(self.fields.keys())
 
-        # 使用3个不同的字段组合
-        for i in range(min(max_expr, len(fields) // 3)):
-            if i * 3 + 2 < len(fields):
-                field1 = fields[i * 3]
-                field2 = fields[i * 3 + 1]
-                field3 = fields[i * 3 + 2]
+        for field in fields:
+            field_info = self.fields[field]
+            field_expr = template["field_processing"](field, field_info)
 
-                expr = template["structure"].format(
-                    field1=field1, field2=field2, field3=field3
-                )
-                expressions.append(expr)
+            if len(expressions) >= max_expr:
+                return expressions
+
+            expr = template["structure"].format(field_expr=field_expr)
+            expressions.append(expr)
 
         return expressions
 
-    def generate_diverse_expressions(self, count: int = 30,
-                                     include_categories: List[str] = None) -> List[str]:
+    def generate_diverse_expressions(self, count: int = 30) -> List[str]:
         """生成多样化的表达式集合"""
-        if include_categories is None:
-            include_categories = ["basic", "advanced", "fixed_backfill"]
-
         expressions = []
 
-        # 按类别分组模板
-        templates_by_category = {}
-        for name, template in self.all_templates.items():
-            category = template["category"]
-            if category in include_categories:
-                if category not in templates_by_category:
-                    templates_by_category[category] = []
-                templates_by_category[category].append(name)
+        # 按模板类别分配数量
+        basic_templates = [name for name, template in self.all_templates.items()
+                           if template["category"] == "basic"]
+        advanced_templates = [name for name, template in self.all_templates.items()
+                              if template["category"] == "advanced"]
 
-        # 为每个模板分配数量
-        templates_count = sum(len(templates) for templates in templates_by_category.values())
-        per_template = max(1, count // templates_count)
+        templates_count = len(basic_templates) + len(advanced_templates)
+        per_template = max(2, count // templates_count)
 
-        for category, template_names in templates_by_category.items():
-            for template_name in template_names:
-                try:
-                    template_exprs = self.generate_by_template(template_name, per_template)
-                    print(f"模板 '{template_name}' 生成 {len(template_exprs)} 个表达式")
-                    expressions.extend(template_exprs)
-                except Exception as e:
-                    print(f"模板 '{template_name}' 生成失败: {e}")
-                    continue
+        # 生成基础模板表达式
+        for template_name in basic_templates:
+            if len(expressions) >= count:
+                break
+            template_exprs = self.generate_by_template(template_name, per_template)
+            print(f"基础模板 '{template_name}' 生成 {len(template_exprs)} 个表达式")
+            expressions.extend(template_exprs)
+
+        # 生成高级模板表达式
+        for template_name in advanced_templates:
+            if len(expressions) >= count:
+                break
+            template_exprs = self.generate_by_template(template_name, per_template)
+            print(f"高级模板 '{template_name}' 生成 {len(template_exprs)} 个表达式")
+            expressions.extend(template_exprs)
 
         # 如果数量不够，补充简单表达式
         if len(expressions) < count:
@@ -439,123 +385,156 @@ class FixedUnifiedAlphaGenerator:
             if len(expressions) >= count:
                 break
 
-            field_type = self.fields[field]
-            if field_type == "VECTOR":
-                expr = f"ts_returns(vec_avg({field}), 10)"
+            field_info = self.fields[field]
+            coverage = field_info.get('coverage', 1.0)
+            available_windows = self.get_recommended_backfill_windows(coverage)
+            backfill_window = random.choice(available_windows)
+
+            if field_info['type'] == "VECTOR":
+                expr = f"ts_returns(ts_backfill(vec_avg({field}), {backfill_window}), 10)"
             else:
-                expr = f"ts_returns({field}, 10)"
+                expr = f"ts_returns(ts_backfill({field}, {backfill_window}), 10)"
             expressions.append(expr)
 
         return expressions
 
-    def get_template_categories(self) -> List[str]:
-        """获取所有模板类别"""
-        categories = set()
-        for template in self.all_templates.values():
-            categories.add(template["category"])
-        return list(categories)
-
-    def get_templates_by_category(self, category: str) -> List[str]:
-        """按类别获取模板名称"""
-        return [name for name, template in self.all_templates.items()
-                if template["category"] == category]
-
-    def analyze_expressions_by_category(self, expressions: List[str]) -> Dict[str, List[str]]:
-        """按类别分析表达式"""
-        category_examples = {
-            "basic": [],
-            "advanced": [],
-            "fixed_backfill": []
+    def analyze_field_coverage(self) -> Dict:
+        """分析字段覆盖率"""
+        coverage_stats = {
+            "total_fields": len(self.fields),
+            "coverage_distribution": {
+                "high": 0,
+                "medium": 0,
+                "low": 0
+            },
+            "field_details": {},
+            "window_options": self.backfill_windows
         }
 
+        for field, info in self.fields.items():
+            coverage = info.get('coverage', 1.0)
+            coverage_level = self.get_coverage_level(coverage)
+            recommended_windows = self.get_recommended_backfill_windows(coverage)
+
+            coverage_stats["coverage_distribution"][coverage_level] += 1
+            coverage_stats["field_details"][field] = {
+                "type": info['type'],
+                "coverage": coverage,
+                "level": coverage_level,
+                "recommended_windows": recommended_windows
+            }
+
+        return coverage_stats
+
+    def get_coverage_advice(self) -> str:
+        """获取覆盖率处理建议"""
+        stats = self.analyze_field_coverage()
+        advice = []
+
+        advice.append("=== 覆盖率处理建议 ===")
+        advice.append(f"字段总数: {stats['total_fields']}")
+        advice.append(f"覆盖率分布: 高({stats['coverage_distribution']['high']}) "
+                      f"中({stats['coverage_distribution']['medium']}) "
+                      f"低({stats['coverage_distribution']['low']})")
+
+        advice.append(f"\n可用回填窗口: {self.backfill_windows}")
+        advice.append("\n回填策略:")
+        advice.append("  - 高覆盖率(>=0.8): 使用短窗口 [5, 10, 20] - 处理日度数据")
+        advice.append("  - 中等覆盖率(0.6-0.8): 使用中等窗口 [20, 60] - 处理季度数据")
+        advice.append("  - 低覆盖率(<0.6): 使用长窗口 [120, 250] - 处理年度数据")
+
+        advice.append("\n低覆盖率字段处理:")
+        low_coverage_fields = [f for f, info in stats["field_details"].items()
+                               if info['level'] == 'low']
+        if low_coverage_fields:
+            advice.append("  以下字段建议使用长回填窗口:")
+            for field in low_coverage_fields[:3]:
+                info = stats["field_details"][field]
+                advice.append(f"    - {field}: 覆盖率={info['coverage']:.2f}, "
+                              f"推荐窗口={info['recommended_windows']}")
+
+        return "\n".join(advice)
+
+    def get_window_usage_stats(self, expressions: List[str]) -> Dict:
+        """统计回填窗口使用情况"""
+        import re
+        window_stats = {str(window): 0 for window in self.backfill_windows}
+
         for expr in expressions:
-            # 基础模板匹配
-            if any(op in expr for op in ["ts_returns(", "ts_delta(", "ts_zscore("]) and "ts_backfill" not in expr:
-                if len(category_examples["basic"]) < 2:
-                    category_examples["basic"].append(expr)
+            # 提取所有回填窗口
+            matches = re.findall(r'ts_backfill\([^,]+,\s*(\d+)\)', expr)
+            for match in matches:
+                window = int(match)
+                if str(window) in window_stats:
+                    window_stats[str(window)] += 1
 
-            # 固定回填模板匹配
-            elif "ts_backfill" in expr:
-                if len(category_examples["fixed_backfill"]) < 2:
-                    category_examples["fixed_backfill"].append(expr)
-
-            # 高级模板匹配
-            elif any(op in expr for op in ["ts_regression(", "group_neutralize("]):
-                if len(category_examples["advanced"]) < 2:
-                    category_examples["advanced"].append(expr)
-
-        return category_examples
+        return window_stats
 
 
 # 使用示例
 def main():
+    # 示例字段数据（包含覆盖率信息）
     fields = {
-        'anl11_1e': 'MATRIX',
-        'anl11_1g': 'MATRIX',
-        'anl11_1pme': 'VECTOR',
-        'anl11_1tic': 'MATRIX',
-        'anl11_2e': 'MATRIX',
-        'anl11_2g': 'VECTOR',
-        'anl11_2pme': 'MATRIX',
-        'snt22dts_sop': 'MATRIX',
-        'snt22_2dts_sop_7': 'MATRIX'
+        'anl11_1e': {'type': 'MATRIX', 'coverage': 0.5813},
+        'anl11_1g': {'type': 'MATRIX', 'coverage': 0.5822},
+        'anl11_1pme': {'type': 'MATRIX', 'coverage': 0.5823},
+        'anl11_1tic': {'type': 'MATRIX', 'coverage': 0.7915},
+        'anl11_2e': {'type': 'MATRIX', 'coverage': 0.7921},
+        'anl11_2g': {'type': 'VECTOR', 'coverage': 0.4523},
+        'anl11_2pme': {'type': 'MATRIX', 'coverage': 0.8234},
+        'snt22dts_sop': {'type': 'MATRIX', 'coverage': 0.3812},
+        'snt22_2dts_sop_7': {'type': 'MATRIX', 'coverage': 0.7123}
     }
 
-    generator = FixedUnifiedAlphaGenerator([], fields)
+    generator = FixedWindowCoverageAlphaGenerator(None, fields)
 
-    print("=== 修复后的统一模板系统 ===")
-    print(f"模板类别: {', '.join(generator.get_template_categories())}")
+    print("=== 固定窗口覆盖率感知Alpha表达式生成器 ===")
 
-    # 显示每个类别的模板
-    for category in generator.get_template_categories():
-        templates = generator.get_templates_by_category(category)
-        print(f"\n{category} 类别模板:")
-        for template in templates:
-            desc = generator.all_templates[template]["description"]
-            print(f"  - {template}: {desc}")
+    # 显示覆盖率建议
+    advice = generator.get_coverage_advice()
+    print(advice)
 
-    # 测试各类别模板
-    print(f"\n=== 各类别模板测试 ===")
+    # 分析字段覆盖率
+    coverage_stats = generator.analyze_field_coverage()
+    print(f"\n=== 字段详情 ===")
+    for field, info in coverage_stats["field_details"].items():
+        print(f"  {field}: {info['type']}, 覆盖率={info['coverage']:.2f}, "
+              f"级别={info['level']}, 推荐窗口={info['recommended_windows']}")
+
+    # 测试不同模板
+    print(f"\n=== 模板测试 ===")
 
     # 基础模板测试
-    basic_templates = generator.get_templates_by_category("basic")[:2]
-    for template_name in basic_templates:
+    basic_templates = ["momentum", "mean_reversion", "volatility_adjusted", "cross_sectional"]
+    for template_name in basic_templates[:2]:
         print(f"\n{template_name} 表达式:")
         exprs = generator.generate_by_template(template_name, 3)
         for i, expr in enumerate(exprs, 1):
             print(f"  {i}. {expr}")
 
     # 高级模板测试
-    advanced_templates = generator.get_templates_by_category("advanced")[:2]
-    for template_name in advanced_templates:
-        print(f"\n{template_name} 表达式:")
-        exprs = generator.generate_by_template(template_name, 3)
-        for i, expr in enumerate(exprs, 1):
-            print(f"  {i}. {expr}")
-
-    # 固定回填模板测试
-    fixed_templates = generator.get_templates_by_category("fixed_backfill")[:2]
-    for template_name in fixed_templates:
+    advanced_templates = ["residual_momentum", "robust_momentum"]
+    for template_name in advanced_templates[:2]:
         print(f"\n{template_name} 表达式:")
         exprs = generator.generate_by_template(template_name, 3)
         for i, expr in enumerate(exprs, 1):
             print(f"  {i}. {expr}")
 
     print(f"\n=== 多样化表达式生成 ===")
-    diverse_exprs = generator.generate_diverse_expressions(25)
+    diverse_exprs = generator.generate_diverse_expressions(20)
     print(f"生成 {len(diverse_exprs)} 个多样化表达式")
 
-    # 使用改进的分析方法
-    print("\n各类别表达式示例:")
-    category_examples = generator.analyze_expressions_by_category(diverse_exprs)
+    # 统计窗口使用情况
+    window_stats = generator.get_window_usage_stats(diverse_exprs)
+    print(f"\n回填窗口使用统计:")
+    for window, count in window_stats.items():
+        if count > 0:
+            print(f"  窗口 {window}天: {count} 次")
 
-    for category, examples in category_examples.items():
-        print(f"\n{category} 示例:")
-        if examples:
-            for expr in examples:
-                print(f"  - {expr}")
-        else:
-            print(f"  (无匹配表达式)")
+    # 显示一些示例
+    print("\n示例表达式:")
+    for i, expr in enumerate(diverse_exprs[:6], 1):
+        print(f"  {i}. {expr}")
 
 
 if __name__ == "__main__":
