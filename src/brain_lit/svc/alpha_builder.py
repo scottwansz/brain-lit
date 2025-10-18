@@ -17,20 +17,6 @@ class FixedWindowCoverageAlphaGenerator:
         # 固定的回填窗口选项
         self.backfill_windows = [5, 10, 20, 60, 120, 250]
 
-        # 覆盖率阈值配置
-        self.coverage_thresholds = {
-            'high': 0.8,  # 高覆盖率：日度或更高频率数据
-            'medium': 0.6,  # 中等覆盖率：周度或月度数据
-            'low': 0.4  # 低覆盖率：季度或年度数据
-        }
-
-        # 覆盖率级别对应的窗口选择范围
-        self.coverage_window_mapping = {
-            'high': [5, 10, 20],  # 高覆盖率：短窗口
-            'medium': [20, 60],  # 中等覆盖率：中等窗口
-            'low': [120, 250]  # 低覆盖率：长窗口
-        }
-
     def _categorize_operators(self) -> Dict[str, List[str]]:
         """分类操作符"""
         return {
@@ -127,6 +113,7 @@ class FixedWindowCoverageAlphaGenerator:
                 "structure": "winsorize(rank(ts_returns({field_expr}, {window})), std=4)",
                 "description": "稳健动量因子（异常值处理+排名）",
                 "category": "advanced",
+                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
                 "suitable_windows": [5, 10, 20],
                 "field_processing": self._process_field_by_coverage
             }
@@ -160,11 +147,10 @@ class FixedWindowCoverageAlphaGenerator:
             field_expr = field
 
         # 根据覆盖率选择回填窗口
-        # 计算更新频率：250*(1-覆盖率)
-        update_frequency = 250 * (1 - coverage)
-        # 在[5,10,20,120,250]中找到比它大的最小数作为回填窗口
-        available_windows = [5, 10, 20, 120, 250]
-        backfill_window = next((w for w in available_windows if w > update_frequency), 250)
+        # 计算数据缺失天数：250*(1-覆盖率)
+        missing_days = 250 * (1 - coverage)
+        available_windows = [5, 10, 20, 60, 120, 250]
+        backfill_window = next((w for w in available_windows if w > missing_days), 250)
 
         field_expr = f"ts_backfill({field_expr}, {backfill_window})"
 
@@ -181,20 +167,6 @@ class FixedWindowCoverageAlphaGenerator:
                 continue
             fields.append(field)
         return fields
-
-    def get_coverage_level(self, coverage: float) -> str:
-        """获取覆盖率级别"""
-        if coverage >= self.coverage_thresholds['high']:
-            return "high"
-        elif coverage >= self.coverage_thresholds['medium']:
-            return "medium"
-        else:
-            return "low"
-
-    def get_recommended_backfill_windows(self, coverage: float) -> List[int]:
-        """根据覆盖率推荐回填窗口范围"""
-        coverage_level = self.get_coverage_level(coverage)
-        return self.coverage_window_mapping[coverage_level]
 
     def generate_by_template(self, template_name: str, max_expressions: int = 20) -> List[str]:
         """根据模板名称生成表达式"""
@@ -351,7 +323,7 @@ class FixedWindowCoverageAlphaGenerator:
                               if template["category"] == "advanced"]
 
         templates_count = len(basic_templates) + len(advanced_templates)
-        per_template = max(2, count // templates_count)
+        per_template = max(5, count // templates_count)  # 增加每个模板的表达式数量
 
         # 生成基础模板表达式
         for template_name in basic_templates:
@@ -387,8 +359,10 @@ class FixedWindowCoverageAlphaGenerator:
 
             field_info = self.fields[field]
             coverage = field_info.get('coverage', 1.0)
-            available_windows = self.get_recommended_backfill_windows(coverage)
-            backfill_window = random.choice(available_windows)
+            # 使用新的计算方式选择回填窗口
+            update_frequency = 250 * (1 - coverage)
+            available_windows = [5, 10, 20, 60, 120, 250]
+            backfill_window = next((w for w in available_windows if w > update_frequency), 250)
 
             if field_info['type'] == "VECTOR":
                 expr = f"ts_returns(ts_backfill(vec_avg({field}), {backfill_window}), 10)"
@@ -413,8 +387,19 @@ class FixedWindowCoverageAlphaGenerator:
 
         for field, info in self.fields.items():
             coverage = info.get('coverage', 1.0)
-            coverage_level = self.get_coverage_level(coverage)
-            recommended_windows = self.get_recommended_backfill_windows(coverage)
+            # 使用新的计算方式选择回填窗口
+            # 计算数据缺失天数：250*(1-覆盖率)
+            missing_days = 250 * (1 - coverage)
+            available_windows = [5, 10, 20, 60, 120, 250]
+            recommended_windows = [next((w for w in available_windows if w > missing_days), 250)]
+            
+            # 简化的覆盖率级别计算
+            if coverage >= 0.8:
+                coverage_level = "high"
+            elif coverage >= 0.6:
+                coverage_level = "medium"
+            else:
+                coverage_level = "low"
 
             coverage_stats["coverage_distribution"][coverage_level] += 1
             coverage_stats["field_details"][field] = {
@@ -439,9 +424,10 @@ class FixedWindowCoverageAlphaGenerator:
 
         advice.append(f"\n可用回填窗口: {self.backfill_windows}")
         advice.append("\n回填策略:")
-        advice.append("  - 高覆盖率(>=0.8): 使用短窗口 [5, 10, 20] - 处理日度数据")
-        advice.append("  - 中等覆盖率(0.6-0.8): 使用中等窗口 [20, 60] - 处理季度数据")
-        advice.append("  - 低覆盖率(<0.6): 使用长窗口 [120, 250] - 处理年度数据")
+        advice.append("  - 根据公式 250*(1-覆盖率) 计算数据缺失天数")
+        advice.append("  - 从 [5, 10, 20, 60, 120, 250] 中选择大于数据缺失天数的最小窗口")
+        advice.append("  - 覆盖率越高，(1-覆盖率)越小，数据缺失天数越少，所选窗口越短")
+        advice.append("  - 覆盖率越低，(1-覆盖率)越大，数据缺失天数越多，所选窗口越长")
 
         advice.append("\n低覆盖率字段处理:")
         low_coverage_fields = [f for f, info in stats["field_details"].items()
