@@ -1,5 +1,6 @@
 import random
 from typing import List, Dict
+from itertools import combinations
 
 
 class AlphaGenerator:
@@ -10,6 +11,7 @@ class AlphaGenerator:
             fields: 字段信息字典，格式为 {'field_name': {'type': 'MATRIX', 'coverage': 0.58}, ...}
         """
         self.fields = fields
+        self.processed_fields = self._process_all_fields()
         self.categorized_ops = self._categorize_operators()
         self.all_templates = self._create_optimized_templates()
 
@@ -39,8 +41,7 @@ class AlphaGenerator:
                 "description": "动量因子",
                 "category": "basic",
                 "suitable_ts_ops": self.categorized_ops["ts_trend"],
-                "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [5, 10, 20]
             },
 
             "mean_reversion": {
@@ -48,8 +49,7 @@ class AlphaGenerator:
                 "description": "均值回归因子",
                 "category": "basic",
                 "suitable_ts_ops": ["ts_zscore", "ts_av_diff", "ts_rank"],
-                "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [5, 10, 20]
             },
 
             "volatility_adjusted": {
@@ -57,8 +57,7 @@ class AlphaGenerator:
                 "description": "波动率调整因子",
                 "category": "basic",
                 "suitable_ts_ops": ["ts_delta", "ts_returns", "ts_av_diff"],
-                "suitable_windows_pairs": [(5, 10), (10, 20), (20, 20)],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows_pairs": [(5, 10), (10, 20), (20, 20)]
             },
 
             "cross_sectional": {
@@ -67,8 +66,7 @@ class AlphaGenerator:
                 "category": "basic",
                 "suitable_cs_ops": ["rank", "zscore", "scale"],
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [5, 10, 20]
             }
         }
 
@@ -78,16 +76,13 @@ class AlphaGenerator:
                 "structure": "ts_regression({field_y}, {field_x}, {window}, 0, 1)",
                 "description": "残差动量因子",
                 "category": "advanced",
-                "suitable_windows": [10, 20, 60],
-                "suitable_field_pairs": self._generate_field_pairs(),
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [10, 20, 60]
             },
 
             "coverage_conditional": {
                 "structure": "group_count(is_nan({field_expr}), market) > 40 ? {field_expr} : nan",
                 "description": "覆盖率条件因子（检测异常下降）",
-                "category": "advanced",
-                "field_processing": self._process_field_by_coverage
+                "category": "advanced"
             },
 
             "sector_neutral_robust": {
@@ -95,8 +90,7 @@ class AlphaGenerator:
                 "description": "稳健行业中性因子",
                 "category": "advanced",
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [10, 20]
             },
 
             "distribution_normalized": {
@@ -104,8 +98,7 @@ class AlphaGenerator:
                 "description": "分布标准化因子（控制多头空头权重）",
                 "category": "advanced",
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [5, 10, 20]
             },
 
             "robust_momentum": {
@@ -113,22 +106,20 @@ class AlphaGenerator:
                 "description": "稳健动量因子（异常值处理+排名）",
                 "category": "advanced",
                 "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20],
-                "field_processing": self._process_field_by_coverage
+                "suitable_windows": [5, 10, 20]
             }
         }
 
         return {**basic_templates, **advanced_templates}
 
-    def _generate_field_pairs(self) -> List[tuple]:
-        """生成有意义的字段对"""
-        fields = list(self.fields.keys())
-        pairs = []
-        for f1 in fields[:3]:
-            for f2 in fields[:3]:
-                if f1 != f2:
-                    pairs.append((f1, f2))
-        return pairs
+    def _process_all_fields(self) -> Dict[str, str]:
+        """
+        在构造函数中预处理所有字段，避免在模板中重复处理
+        """
+        processed = {}
+        for field, field_info in self.fields.items():
+            processed[field] = self._process_field_by_coverage(field, field_info)
+        return processed
 
     def _process_field_by_coverage(self, field: str, field_info: Dict) -> str:
         """
@@ -209,7 +200,7 @@ class AlphaGenerator:
 
         for field in fields:
             field_info = self.fields[field]
-            field_expr = template["field_processing"](field, field_info)
+            field_expr = self.processed_fields[field]
             expressions[field] = []
 
             for ts_op in template["suitable_ts_ops"]:
@@ -238,7 +229,7 @@ class AlphaGenerator:
 
         for field in fields:
             field_info = self.fields[field]
-            field_expr = template["field_processing"](field, field_info)
+            field_expr = self.processed_fields[field]
             expressions[field] = []
 
             for cs_op in template["suitable_cs_ops"]:
@@ -263,7 +254,7 @@ class AlphaGenerator:
 
         for field in fields:
             field_info = self.fields[field]
-            field_expr = template["field_processing"](field, field_info)
+            field_expr = self.processed_fields[field]
             expressions[field] = []
 
             for ts_op in template["suitable_ts_ops"]:
@@ -282,11 +273,10 @@ class AlphaGenerator:
         """生成残差模板表达式，返回带字段信息的结构"""
         expressions = {}
 
-        # 确保 suitable_field_pairs 存在
-        if "suitable_field_pairs" not in template:
-            template["suitable_field_pairs"] = self._generate_field_pairs()
+        # 直接生成字段对
+        field_pairs = list(combinations(self.fields.keys(), 2))
 
-        for field_pair in template["suitable_field_pairs"]:
+        for field_pair in field_pairs:
             if len(field_pair) >= 2:
                 field1, field2 = field_pair[0], field_pair[1]
             else:
@@ -300,8 +290,8 @@ class AlphaGenerator:
             if not field1_info or not field2_info:
                 continue
                 
-            field1_expr = template["field_processing"](field1, field1_info)
-            field2_expr = template["field_processing"](field2, field2_info)
+            field1_expr = self.processed_fields[field1]
+            field2_expr = self.processed_fields[field2]
             
             # 以第一个字段作为主字段
             if field1 not in expressions:
@@ -324,7 +314,7 @@ class AlphaGenerator:
 
         for field in fields:
             field_info = self.fields[field]
-            field_expr = template["field_processing"](field, field_info)
+            field_expr = self.processed_fields[field]
             expressions[field] = []
 
             # 处理适合的时间序列操作和窗口
@@ -349,7 +339,7 @@ class AlphaGenerator:
 
         for field in fields:
             field_info = self.fields[field]
-            field_expr = template["field_processing"](field, field_info)
+            field_expr = self.processed_fields[field]
             
             if field not in expressions:
                 expressions[field] = []
