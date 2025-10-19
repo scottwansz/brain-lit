@@ -2,6 +2,129 @@ import random
 from typing import List, Dict
 from itertools import combinations
 
+# 定义回填窗口常量
+BACKFILL_WINDOWS = [5, 10, 20, 60, 120, 250]
+
+
+def categorize_operators() -> Dict[str, List[str]]:
+    """分类操作符"""
+    return {
+        "vector": ["vec_avg", "vec_sum", "vec_max", "vec_min"],
+        "ts_trend": ["ts_returns", "ts_delta", "ts_moment", "ts_regression"],
+        "ts_mean_reversion": ["ts_zscore", "ts_av_diff", "ts_scale", "ts_rank"],
+        "ts_volatility": ["ts_std_dev", "ts_entropy"],
+        "ts_backfill": ["ts_backfill", "kth_element", "group_backfill"],
+        "coverage_handling": ["ts_backfill", "kth_element", "group_backfill", "is_nan", "days_from_last_change"],
+        "outlier_handling": ["winsorize", "truncate", "rank", "zscore", "normalize", "scale"],
+        "group_ops": ["group_neutralize", "group_rank", "group_zscore"]
+    }
+
+
+def create_alpha_templates() -> Dict[str, Dict]:
+    """创建优化后的模板系统"""
+
+    # 基础模板
+    basic_templates = {
+        "momentum": {
+            "structure": "{ts_op}({field_expr}, {window})",
+            "description": "动量因子",
+            "category": "basic",
+            "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_moment", "ts_regression"],
+            "suitable_windows": [5, 10, 20]
+        },
+
+        "mean_reversion": {
+            "structure": "{ts_op}({field_expr}, {window})",
+            "description": "均值回归因子",
+            "category": "basic",
+            "suitable_ts_ops": ["ts_zscore", "ts_av_diff", "ts_rank"],
+            "suitable_windows": [5, 10, 20]
+        },
+
+        "volatility_adjusted": {
+            "structure": "divide({ts_op}({field_expr}, {window1}), ts_std_dev({field_expr}, {window2}))",
+            "description": "波动率调整因子",
+            "category": "basic",
+            "suitable_ts_ops": ["ts_delta", "ts_returns", "ts_av_diff"],
+            "suitable_windows_pairs": [(5, 10), (10, 20), (20, 20)]
+        },
+
+        "cross_sectional": {
+            "structure": "{cs_op}({ts_op}({field_expr}, {window}))",
+            "description": "横截面标准化因子",
+            "category": "basic",
+            "suitable_cs_ops": ["rank", "zscore", "scale"],
+            "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
+            "suitable_windows": [5, 10, 20]
+        }
+    }
+
+    # 高级模板
+    advanced_templates = {
+        "residual_momentum": {
+            "structure": "ts_regression({field_y}, {field_x}, {window}, 0, 1)",
+            "description": "残差动量因子",
+            "category": "advanced",
+            "suitable_windows": [10, 20, 60]
+        },
+
+        "coverage_conditional": {
+            "structure": "group_count(is_nan({field_expr}), market) > 40 ? {field_expr} : nan",
+            "description": "覆盖率条件因子（检测异常下降）",
+            "category": "advanced"
+        },
+
+        "sector_neutral_robust": {
+            "structure": "group_neutralize(rank(winsorize({ts_op}({field_expr}, {window}), std=4)), sector)",
+            "description": "稳健行业中性因子",
+            "category": "advanced",
+            "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
+            "suitable_windows": [10, 20]
+        },
+
+        "distribution_normalized": {
+            "structure": "scale(rank({ts_op}({field_expr}, {window})), longscale=0.8, shortscale=0.8)",
+            "description": "分布标准化因子（控制多头空头权重）",
+            "category": "advanced",
+            "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
+            "suitable_windows": [5, 10, 20]
+        },
+
+        "robust_momentum": {
+            "structure": "winsorize(rank({ts_op}({field_expr}, {window})), std=4)",
+            "description": "稳健动量因子（异常值处理+排名）",
+            "category": "advanced",
+            "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
+            "suitable_windows": [5, 10, 20]
+        }
+    }
+
+    return {**basic_templates, **advanced_templates}
+
+
+def process_field_by_coverage(field: str, field_info: Dict) -> str:
+    """
+    根据字段覆盖率和类型处理字段表达式
+    """
+    field_type = field_info['type']
+    coverage = field_info.get('coverage', 1.0)
+
+    # 处理字段类型
+    if field_type == "VECTOR":
+        vector_ops = ["vec_avg", "vec_sum", "vec_max"]
+        field_expr = f"{random.choice(vector_ops)}({field})"
+    else:
+        field_expr = field
+
+    # 根据覆盖率选择回填窗口
+    # 计算数据缺失天数：250*(1-覆盖率)
+    missing_days = 250 * (1 - coverage)
+    backfill_window = next((w for w in BACKFILL_WINDOWS if w > missing_days), 250)
+
+    field_expr = f"ts_backfill({field_expr}, {backfill_window})"
+
+    return field_expr
+
 
 class AlphaGenerator:
     def __init__(self, fields: Dict[str, Dict]):
@@ -12,105 +135,7 @@ class AlphaGenerator:
         """
         self.fields = fields
         self.processed_fields = self._process_all_fields()
-        self.categorized_ops = self._categorize_operators()
-        self.all_templates = self._create_optimized_templates()
-
-        # 固定的回填窗口选项
-        self.backfill_windows = [5, 10, 20, 60, 120, 250]
-
-    def _categorize_operators(self) -> Dict[str, List[str]]:
-        """分类操作符"""
-        return {
-            "vector": ["vec_avg", "vec_sum", "vec_max", "vec_min"],
-            "ts_trend": ["ts_returns", "ts_delta", "ts_moment", "ts_regression"],
-            "ts_mean_reversion": ["ts_zscore", "ts_av_diff", "ts_scale", "ts_rank"],
-            "ts_volatility": ["ts_std_dev", "ts_entropy"],
-            "ts_backfill": ["ts_backfill", "kth_element", "group_backfill"],
-            "coverage_handling": ["ts_backfill", "kth_element", "group_backfill", "is_nan", "days_from_last_change"],
-            "outlier_handling": ["winsorize", "truncate", "rank", "zscore", "normalize", "scale"],
-            "group_ops": ["group_neutralize", "group_rank", "group_zscore"]
-        }
-
-    def _create_optimized_templates(self) -> Dict[str, Dict]:
-        """创建优化后的模板系统"""
-
-        # 基础模板
-        basic_templates = {
-            "momentum": {
-                "structure": "{ts_op}({field_expr}, {window})",
-                "description": "动量因子",
-                "category": "basic",
-                "suitable_ts_ops": self.categorized_ops["ts_trend"],
-                "suitable_windows": [5, 10, 20]
-            },
-
-            "mean_reversion": {
-                "structure": "{ts_op}({field_expr}, {window})",
-                "description": "均值回归因子",
-                "category": "basic",
-                "suitable_ts_ops": ["ts_zscore", "ts_av_diff", "ts_rank"],
-                "suitable_windows": [5, 10, 20]
-            },
-
-            "volatility_adjusted": {
-                "structure": "divide({ts_op}({field_expr}, {window1}), ts_std_dev({field_expr}, {window2}))",
-                "description": "波动率调整因子",
-                "category": "basic",
-                "suitable_ts_ops": ["ts_delta", "ts_returns", "ts_av_diff"],
-                "suitable_windows_pairs": [(5, 10), (10, 20), (20, 20)]
-            },
-
-            "cross_sectional": {
-                "structure": "{cs_op}({ts_op}({field_expr}, {window}))",
-                "description": "横截面标准化因子",
-                "category": "basic",
-                "suitable_cs_ops": ["rank", "zscore", "scale"],
-                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20]
-            }
-        }
-
-        # 高级模板
-        advanced_templates = {
-            "residual_momentum": {
-                "structure": "ts_regression({field_y}, {field_x}, {window}, 0, 1)",
-                "description": "残差动量因子",
-                "category": "advanced",
-                "suitable_windows": [10, 20, 60]
-            },
-
-            "coverage_conditional": {
-                "structure": "group_count(is_nan({field_expr}), market) > 40 ? {field_expr} : nan",
-                "description": "覆盖率条件因子（检测异常下降）",
-                "category": "advanced"
-            },
-
-            "sector_neutral_robust": {
-                "structure": "group_neutralize(rank(winsorize({ts_op}({field_expr}, {window}), std=4)), sector)",
-                "description": "稳健行业中性因子",
-                "category": "advanced",
-                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [10, 20]
-            },
-
-            "distribution_normalized": {
-                "structure": "scale(rank({ts_op}({field_expr}, {window})), longscale=0.8, shortscale=0.8)",
-                "description": "分布标准化因子（控制多头空头权重）",
-                "category": "advanced",
-                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20]
-            },
-
-            "robust_momentum": {
-                "structure": "winsorize(rank({ts_op}({field_expr}, {window})), std=4)",
-                "description": "稳健动量因子（异常值处理+排名）",
-                "category": "advanced",
-                "suitable_ts_ops": ["ts_returns", "ts_delta", "ts_zscore"],
-                "suitable_windows": [5, 10, 20]
-            }
-        }
-
-        return {**basic_templates, **advanced_templates}
+        self.all_templates = create_alpha_templates()
 
     def _process_all_fields(self) -> Dict[str, str]:
         """
@@ -118,33 +143,8 @@ class AlphaGenerator:
         """
         processed = {}
         for field, field_info in self.fields.items():
-            processed[field] = self._process_field_by_coverage(field, field_info)
+            processed[field] = process_field_by_coverage(field, field_info)
         return processed
-
-    def _process_field_by_coverage(self, field: str, field_info: Dict) -> str:
-        """
-        根据字段覆盖率和类型处理字段表达式
-        使用固定的回填窗口选项 [5, 10, 20, 60, 120, 250]
-        """
-        field_type = field_info['type']
-        coverage = field_info.get('coverage', 1.0)
-
-        # 处理字段类型
-        if field_type == "VECTOR":
-            vector_ops = ["vec_avg", "vec_sum", "vec_max"]
-            field_expr = f"{random.choice(vector_ops)}({field})"
-        else:
-            field_expr = field
-
-        # 根据覆盖率选择回填窗口
-        # 计算数据缺失天数：250*(1-覆盖率)
-        missing_days = 250 * (1 - coverage)
-        available_windows = [5, 10, 20, 60, 120, 250]
-        backfill_window = next((w for w in available_windows if w > missing_days), 250)
-
-        field_expr = f"ts_backfill({field_expr}, {backfill_window})"
-
-        return field_expr
 
     def get_fields_by_coverage(self, min_coverage: float = None, max_coverage: float = None) -> List[str]:
         """根据覆盖率获取字段"""
@@ -435,8 +435,7 @@ class AlphaGenerator:
             coverage = field_info.get('coverage', 1.0)
             # 使用新的计算方式选择回填窗口
             update_frequency = 250 * (1 - coverage)
-            available_windows = [5, 10, 20, 60, 120, 250]
-            backfill_window = next((w for w in available_windows if w > update_frequency), 250)
+            backfill_window = next((w for w in BACKFILL_WINDOWS if w > update_frequency), 250)
 
             if field_info['type'] == "VECTOR":
                 expr = f"ts_returns(ts_backfill(vec_avg({field}), {backfill_window}), 10)"
@@ -451,7 +450,7 @@ class AlphaGenerator:
         coverage_stats = {
             "total_fields": len(self.fields),
             "field_details": {},
-            "window_options": self.backfill_windows
+            "window_options": BACKFILL_WINDOWS
         }
 
         for field, info in self.fields.items():
@@ -459,8 +458,7 @@ class AlphaGenerator:
             # 使用新的计算方式选择回填窗口
             # 计算数据缺失天数：250*(1-覆盖率)
             missing_days = 250 * (1 - coverage)
-            available_windows = [5, 10, 20, 60, 120, 250]
-            backfill_window = next((w for w in available_windows if w > missing_days), 250)
+            backfill_window = next((w for w in BACKFILL_WINDOWS if w > missing_days), 250)
             
             coverage_stats["field_details"][field] = {
                 "type": info['type'],
@@ -478,10 +476,10 @@ class AlphaGenerator:
         advice.append("=== 覆盖率处理建议 ===")
         advice.append(f"字段总数: {stats['total_fields']}")
 
-        advice.append(f"\n可用回填窗口: {self.backfill_windows}")
+        advice.append(f"\n可用回填窗口: {BACKFILL_WINDOWS}")
         advice.append("\n回填策略:")
         advice.append("  - 根据公式 250*(1-覆盖率) 计算数据缺失天数")
-        advice.append("  - 从 [5, 10, 20, 60, 120, 250] 中选择大于数据缺失天数的最小窗口")
+        advice.append(f"  - 从 {BACKFILL_WINDOWS} 中选择大于数据缺失天数的最小窗口")
         advice.append("  - 覆盖率越高，(1-覆盖率)越小，数据缺失天数越少，所选窗口越短")
         advice.append("  - 覆盖率越低，(1-覆盖率)越大，数据缺失天数越多，所选窗口越长")
 
@@ -490,7 +488,7 @@ class AlphaGenerator:
     def get_window_usage_stats(self, expressions: List[str]) -> Dict:
         """统计回填窗口使用情况"""
         import re
-        window_stats = {str(window): 0 for window in self.backfill_windows}
+        window_stats = {str(window): 0 for window in BACKFILL_WINDOWS}
 
         for expr in expressions:
             # 提取所有回填窗口
