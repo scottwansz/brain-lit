@@ -20,7 +20,7 @@ def categorize_operators() -> Dict[str, List[str]]:
     }
 
 
-def create_alpha_templates() -> Dict[str, Dict]:
+def get_alpha_templates() -> Dict[str, Dict]:
     """创建优化后的模板系统"""
 
     # 基础模板
@@ -135,7 +135,7 @@ class AlphaGenerator:
         """
         self.fields = fields
         self.processed_fields = self._process_all_fields()
-        self.all_templates = create_alpha_templates()
+        self.all_templates = get_alpha_templates()
 
     def _process_all_fields(self) -> Dict[str, str]:
         """

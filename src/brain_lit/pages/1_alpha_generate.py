@@ -3,6 +3,8 @@ import sys
 
 import streamlit as st
 
+from brain_lit.svc.datafields import get_all_data_fields
+
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -10,6 +12,7 @@ from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
 from brain_lit.svc.dataset import get_all_datasets, get_used_dataset_ids
 from brain_lit.svc.alpha_query import query_alphas_by_conditions, query_alphas_simulation_stats
+from brain_lit.svc.alpha_builder import get_alpha_templates, AlphaGenerator
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -275,14 +278,6 @@ if st.session_state.get("query_datasets_clicked", False):
         st.info("当前筛选条件下没有找到数据集")
         st.session_state.current_page = 1
 
-# Alpha表达式输入区域
-st.subheader("Alpha表达式")
-alpha_expression = st.text_area(
-    "请输入您的Alpha表达式:",
-    height=200,
-    placeholder="# 示例Alpha表达式\n# rank(correlation(close, returns, 5))"
-)
-
 # 参数设置
 st.subheader("参数设置")
 col1, col2, col3 = st.columns(3)
@@ -299,18 +294,39 @@ with col2:
 with col3:
     truncation = st.slider("截断百分比", 0.0, 10.0, 5.0, 0.1)
 
+# 添加模板选择
+templates = get_alpha_templates()
+template_options = {name: f"{name}: {info['description']}" for name, info in templates.items()}
+selected_template = st.selectbox("选择Alpha模板", options=list(template_options.keys()), 
+                                format_func=lambda x: template_options[x])
+
 # 操作按钮
 st.markdown("---")
 col6, col7, col8, col9 = st.columns([1, 1, 1, 3])
 
-with col6:
-    if st.button("生成Alpha", type="primary"):
-        if alpha_expression.strip():
-            st.success("Alpha表达式已提交进行回测！")
-            st.session_state.pending_alpha = alpha_expression
-            st.switch_page("pages/2_Simulate_Alpha.py")
-        else:
-            st.warning("请输入Alpha表达式")
+if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数据集
+    selected_dataset_ids = get_selected_dataset_ids()
+
+    if selected_dataset_ids and selected_template:
+        st.success(f"使用{selected_template}模板生成Alpha表达式")
+        query_params = {
+            "region": selected_region,
+            "universe": selected_universe,
+            "delay": selected_delay,
+            # "category": selected_category,
+            "dataset_id": selected_dataset_ids[0],
+            # "neutralization": neutralization,
+            # "decay": decay,
+            # "truncation": truncation
+        }
+        dataset_fields = get_all_data_fields(** query_params)
+        generator = AlphaGenerator(dataset_fields)
+        alpha_expression = generator.generate_by_template(selected_template)
+        st.json(query_params)
+        st.json(alpha_expression)
+
+    else:
+        st.warning("请选择数据集与表达式模板")
 
 with col7:
     if st.button("查询Alpha"):
@@ -431,7 +447,7 @@ with col10:
 if col11.button("开始回测"):
     # 构建查询参数
     selected_dataset_ids = get_selected_dataset_ids()
-    query = {
+    query_params = {
         "region": selected_region,
         "universe": selected_universe,
         "delay": selected_delay,
@@ -441,10 +457,10 @@ if col11.button("开始回测"):
 
     # 添加分类参数（如果不是"All"）
     if selected_category and selected_category != "All":
-        query["category"] = selected_category
+        query_params["category"] = selected_category
 
     # 调用start_simulate方法
-    task_manager.start_simulate(query, n_tasks_max)
+    task_manager.start_simulate(query_params, n_tasks_max)
     st.success("已开始回测任务")
 
 # 回测状态按钮
@@ -457,7 +473,7 @@ if col12.button("回测状态"):
 if col13.button("停止回测"):
     # 构建查询参数
     selected_dataset_ids = get_selected_dataset_ids()
-    query = {
+    query_params = {
         "region": selected_region,
         "universe": selected_universe,
         "delay": selected_delay,
@@ -466,7 +482,7 @@ if col13.button("停止回测"):
     }
 
     # 调用stop_simulate方法
-    task_manager.stop_simulate(query)
+    task_manager.stop_simulate(query_params)
     st.success("已停止回测任务")
 
 with col14:
