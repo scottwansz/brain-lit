@@ -2,14 +2,13 @@ import random
 from typing import List, Dict
 
 
-class FixedWindowCoverageAlphaGenerator:
-    def __init__(self, alpha_data: List[Dict], fields: Dict[str, Dict]):
+class AlphaGenerator:
+    def __init__(self, fields: Dict[str, Dict]):
         """
         Args:
             alpha_data: Alpha操作符数据
             fields: 字段信息字典，格式为 {'field_name': {'type': 'MATRIX', 'coverage': 0.58}, ...}
         """
-        self.alpha_data = alpha_data
         self.fields = fields
         self.categorized_ops = self._categorize_operators()
         self.all_templates = self._create_optimized_templates()
@@ -529,7 +528,7 @@ def main():
         'snt22_2dts_sop_7': {'type': 'MATRIX', 'coverage': 0.7123}
     }
 
-    generator = FixedWindowCoverageAlphaGenerator(None, fields)
+    generator = AlphaGenerator(fields)
 
     print("=== 固定窗口覆盖率感知Alpha表达式生成器 ===")
 
