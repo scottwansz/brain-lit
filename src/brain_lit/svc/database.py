@@ -251,3 +251,96 @@ def batch_update_table(table_name: str, updates: List[Dict[str, Any]]) -> int:
     except Exception as e:
         print(f"批量更新数据库时出错: {e}")
         return 0
+
+
+def insert_record(table_name: str, data: Dict[str, Any]) -> int:
+    """
+    通用的数据插入方法
+    
+    Args:
+        table_name: 表名
+        data: 要插入的数据字典，键为字段名，值为要插入的值
+              例如: {'name': 'example', 'age': 25, 'email': 'test@example.com'}
+    
+    Returns:
+        受影响的行数(通常为1)
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return 0
+        
+        cursor = connection.cursor()
+        
+        # 构建INSERT语句
+        columns = list(data.keys())
+        values = list(data.values())
+        
+        column_names = ', '.join(columns)
+        placeholders = ', '.join(['%s'] * len(columns))
+        
+        query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
+        
+        # 执行插入
+        cursor.execute(query, values)
+        affected_rows = cursor.rowcount
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        return affected_rows
+    
+    except Exception as e:
+        print(f"插入数据时出错: {e}")
+        return 0
+
+
+def batch_insert_records(table_name: str, data_list: List[Dict[str, Any]]) -> int:
+    """
+    通用的批量数据插入方法
+    
+    Args:
+        table_name: 表名
+        data_list: 要插入的数据字典列表，每个元素是一个字典
+                  例如: [{'name': 'example1', 'age': 25}, {'name': 'example2', 'age': 30}]
+    
+    Returns:
+        受影响的行数
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return 0
+        
+        cursor = connection.cursor()
+        
+        total_affected_rows = 0
+        
+        # 检查是否有数据需要插入
+        if not data_list:
+            return 0
+        
+        # 获取字段名（假设所有字典具有相同的键）
+        columns = list(data_list[0].keys())
+        column_names = ', '.join(columns)
+        placeholders = ', '.join(['%s'] * len(columns))
+        
+        # 构建INSERT语句
+        query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
+        
+        # 为每个数据字典执行插入
+        for data in data_list:
+            values = [data[col] for col in columns]
+            cursor.execute(query, values)
+            total_affected_rows += cursor.rowcount
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        return total_affected_rows
+    
+    except Exception as e:
+        print(f"批量插入数据时出错: {e}")
+        return 0
