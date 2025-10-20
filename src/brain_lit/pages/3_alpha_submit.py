@@ -28,7 +28,7 @@ st.markdown("在本页面您可以提交经过验证的Alpha表达式。")
 # Phase输入栏位和统计按钮
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
-    phase = st.text_input("Phase", value="1")
+    phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
 with col2:
     sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
 with col3:

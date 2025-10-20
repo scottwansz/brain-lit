@@ -105,7 +105,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
         return []
 
 
-def query_alphas_simulation_stats(region: str, universe: str, delay: int, category: str = None, dataset_ids: List[str] = None) -> List[Dict[str, Any]]:
+def query_alphas_simulation_stats(region: str, universe: str, delay: int, category: str = None, dataset_ids: List[str] = None, phase: int = 1) -> List[Dict[str, Any]]:
     """
     按simulated值和category进行汇总统计
     
@@ -115,6 +115,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         delay: 延迟
         category: 分类（可选）
         dataset_ids: 数据集ID列表（可选）
+        phase: 回测阶段
         
     Returns:
         按simulated值和category分组的统计结果
@@ -133,9 +134,9 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         query = f"""
         SELECT category, simulated, COUNT(*) as count
         FROM {table_name} 
-        WHERE universe = %s AND delay = %s
+        WHERE universe = %s AND delay = %s AND phase = %s
         """
-        params = [universe, delay]
+        params = [universe, delay, phase]
         
         # 如果指定了分类，添加分类条件
         if category and category != "All":

@@ -294,11 +294,21 @@ with col2:
 with col3:
     truncation = st.slider("截断百分比", 0.0, 10.0, 5.0, 0.1)
 
-# 添加模板选择
-templates = get_alpha_templates()
-template_options = {name: f"{name}: {info['description']}" for name, info in templates.items()}
-selected_template = st.selectbox("选择Alpha模板", options=list(template_options.keys()), 
-                                format_func=lambda x: template_options[x])
+col_phase, col_n_task_max, col_template = st.columns([1, 1, 1])
+
+with col_phase:
+    phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
+
+with col_n_task_max:
+    # 最大任务数输入框
+    n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
+
+with col_template:
+    # 模板选择
+    templates = get_alpha_templates()
+    template_options = {name: f"{name}: {info['description']}" for name, info in templates.items()}
+    selected_template = st.selectbox("选择Alpha模板", options=list(template_options.keys()),
+                                    format_func=lambda x: template_options[x])
 
 # 操作按钮
 st.markdown("---")
@@ -360,7 +370,8 @@ with col8:
             selected_universe,
             selected_delay,
             selected_category,
-            selected_dataset_ids  # 传入选中的数据集ID列表
+            selected_dataset_ids,  # 传入选中的数据集ID列表
+            phase,
         )
 
         # logger.info("simulation_stats: %s", simulation_stats)
@@ -433,18 +444,15 @@ if st.session_state.get("show_query_results", False):
 
 # 添加最大任务数输入框和新的操作按钮
 st.markdown("---")
-col10, col11, col12, col13, col14 = st.columns([1, 1, 1, 1, 2])
 
 # 获取SimulateTaskManager实例
 from brain_lit.svc.simulate import get_simulate_task_manager
 task_manager = get_simulate_task_manager()
 
-with col10:
-    # 最大任务数输入框
-    n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
+col_start_simulate, col_simulate_status, col_stop_simulate, _ = st.columns([1, 1, 1, 3])
 
 # 开始回测按钮
-if col11.button("开始回测"):
+if col_start_simulate.button("开始回测"):
     # 构建查询参数
     selected_dataset_ids = get_selected_dataset_ids()
     query_params = {
@@ -453,6 +461,7 @@ if col11.button("开始回测"):
         "delay": selected_delay,
         "dataset_ids": selected_dataset_ids,
         'simulated': 0,
+        'phase': phase
     }
 
     # 添加分类参数（如果不是"All"）
@@ -464,13 +473,13 @@ if col11.button("开始回测"):
     st.success("已开始回测任务")
 
 # 回测状态按钮
-if col12.button("回测状态"):
+if col_simulate_status.button("回测状态"):
     # 显示simulate_tasks信息
     st.write("当前回测任务信息:")
     st.json(task_manager.simulate_tasks)
 
 # 停止回测按钮
-if col13.button("停止回测"):
+if col_stop_simulate.button("停止回测"):
     # 构建查询参数
     selected_dataset_ids = get_selected_dataset_ids()
     query_params = {
@@ -484,21 +493,3 @@ if col13.button("停止回测"):
     # 调用stop_simulate方法
     task_manager.stop_simulate(query_params)
     st.success("已停止回测任务")
-
-with col14:
-    pass  # 空列用于布局
-
-
-# 显示示例
-with st.expander("查看Alpha表达式示例"):
-    st.markdown("""
-    ### 常用函数示例:
-    - `rank(correlation(close, returns, 5))`
-    - `ts_mean(volume, 10) / ts_mean(volume, 30)`
-    - `zscore(open / close)`
-    
-    ### 可用操作符:
-    - 基本运算: `+`, `-`, `*`, `/`, `**`
-    - 比较运算: `<`, `>`, `<=`, `>=`, `==`, `!=`
-    - 逻辑运算: `&` (与), `|` (或), `~` (非)
-    """)
