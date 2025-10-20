@@ -98,7 +98,7 @@ neutralization_array = [
     "STATISTICAL",
     "COUNTRY"
 ]
-selected_neutralizations = st.multiselect(
+selected_neutralization_opts = st.multiselect(
     "选择Neutralization类型",
     options=neutralization_array,
     default=["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]
@@ -113,7 +113,7 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
         st.warning("请先查询最佳Alphas")
     elif "selected_rows" not in st.session_state or not st.session_state.selected_rows:
         st.warning("请至少选择一个Alpha")
-    elif not selected_neutralizations:
+    elif not selected_neutralization_opts:
         st.warning("请至少选择一个Neutralization类型")
     else:
         # 获取选中的alphas
@@ -122,7 +122,7 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
         # 生成新的alphas（模拟过程）
         new_alphas = []
         for alpha in selected_alphas:
-            for neutralization in selected_neutralizations:
+            for neutralization in selected_neutralization_opts:
                 # 从原始alpha中选择一部分属性来创建新的alpha
                 new_alpha = {
                     'region': alpha.get('region'),
