@@ -92,6 +92,8 @@ def render_sidebar():
             st.switch_page("pages/2_alpha_simulate.py")
         if st.button("📤 提交Alpha"):
             st.switch_page("pages/3_alpha_submit.py")
+        if st.button("🛡️ Risk Neutralization"):
+            st.switch_page("pages/4_risk_neutralization.py")
         
         # st.markdown("---")
         # if st.button("🚪 退出登录"):
