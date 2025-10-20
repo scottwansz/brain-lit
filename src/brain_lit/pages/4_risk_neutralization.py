@@ -3,11 +3,16 @@ import pandas as pd
 import sys
 import os
 
+from brain_lit.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from brain_lit.sidebar import render_sidebar
 from brain_lit.svc.alpha_query import query_submittable_alpha_details
+from brain_lit.svc.database import batch_insert_records
 
 # 渲染共享的侧边栏
 render_sidebar()
@@ -35,6 +40,7 @@ with col3:
 
 # 查询按钮
 if st.button("查询最佳Alphas"):
+    st.session_state.new_alphas_to_save = None
     with st.spinner("正在查询最佳Alphas..."):
         # 调用查询函数获取最佳Alphas
         best_alphas = query_submittable_alpha_details(
@@ -134,17 +140,47 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
                     'category': alpha.get('category'),
                     'dataset': alpha.get('dataset'),
                     'neutralization': neutralization,
-                    'phase': new_phase
+                    'phase': new_phase,
+                    'simulated': 0,
                 }
                 new_alphas.append(new_alpha)
-        
-        # 显示新生成的alphas
-        if new_alphas:
-            st.subheader("新生成的Risk Neutralization Alphas")
-            new_df = pd.DataFrame(new_alphas)
-            st.dataframe(new_df, width='stretch')
-            st.success(f"成功生成 {len(new_alphas)} 个Risk Neutralization Alphas")
-        else:
-            st.warning("未能生成新的Risk Neutralization Alphas")
+                st.session_state.new_alphas_to_save = new_alphas
+
+# 显示新生成的alphas
+if st.session_state.new_alphas_to_save:
+    new_alphas = st.session_state.new_alphas_to_save
+    st.subheader("新生成的Risk Neutralization Alphas")
+    new_df = pd.DataFrame(new_alphas)
+    st.dataframe(new_df, width='stretch')
+
+    st.success(f"成功生成 {len(new_alphas)} 个Risk Neutralization Alphas")
 else:
-    st.info("选择Alpha和Neutralization类型后，点击'生成Risk Neutralization Alphas'按钮")
+    st.info("没有新生成的Risk Neutralization Alphas")
+
+# 添加保存到数据库的按钮
+if st.button("保存到数据库"):
+    st.session_state.save_new_alphas = True
+    # st.rerun()
+
+    # 处理保存操作
+    if st.session_state.get("save_new_alphas", False) and st.session_state.new_alphas_to_save:
+        new_alphas_to_save = st.session_state.new_alphas_to_save
+        try:
+            # 根据地区确定表名
+            table_name = f"{selected_region.lower()}_alphas"
+            # 调用批量插入接口保存数据
+            logger.info(f"批量插入数据到表 {table_name}: %s", new_alphas_to_save)
+            affected_rows = batch_insert_records(table_name, new_alphas_to_save)
+            if affected_rows > 0:
+                st.session_state.save_success = True
+                st.session_state.affected_rows = affected_rows
+                st.success(f"成功保存 {affected_rows} 条记录到数据库")
+            else:
+                st.session_state.save_success = False
+                st.error("保存到数据库时出错")
+        except Exception as e:
+            st.session_state.save_success = False
+            st.error(f"保存到数据库时发生异常: {str(e)}")
+        finally:
+            # 清除保存标志
+            st.session_state.save_new_alphas = False
