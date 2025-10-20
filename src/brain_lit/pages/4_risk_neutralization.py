@@ -142,9 +142,7 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
         if new_alphas:
             st.subheader("新生成的Risk Neutralization Alphas")
             new_df = pd.DataFrame(new_alphas)
-            display_columns = ['name', 'alpha', 'sharp', 'fitness', 'decay', 'neutralization', 'category', 'dataset', 'phase']
-            new_df_display = new_df[display_columns]
-            st.dataframe(new_df_display, width='stretch')
+            st.dataframe(new_df, width='stretch')
             st.success(f"成功生成 {len(new_alphas)} 个Risk Neutralization Alphas")
         else:
             st.warning("未能生成新的Risk Neutralization Alphas")
