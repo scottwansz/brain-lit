@@ -217,7 +217,7 @@ def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: s
         return []
 
 
-def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
+def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str = None, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
     """
     查询指定分类下可提交的Alpha详细信息
     
@@ -226,7 +226,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         universe: 范围
         delay: 延迟
         phase: 阶段
-        category: 分类
+        category: 分类，如果为None则查询所有分类
         sharp_threshold: sharp阈值，默认为1.0
         fitness_threshold: fitness阈值，默认为0.8
         
@@ -243,7 +243,8 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         
         cursor = connection.cursor(dictionary=True)
         
-        detail_query = f"""
+        # 构建查询语句
+        base_query = f"""
         WITH ranked_alphas AS (
             SELECT *,
                    ROW_NUMBER() OVER (
@@ -252,7 +253,17 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
                    ) AS rn
             FROM {table_name}  
             WHERE region = %s AND universe = %s AND delay = %s AND phase = %s 
-                  AND simulated = 1 AND category = %s
+                  AND simulated = 1
+        """
+        
+        # 如果指定了分类，则添加分类条件
+        if category is not None:
+            base_query += " AND category = %s"
+            params = (region, universe, delay, phase, category, sharp_threshold, fitness_threshold)
+        else:
+            params = (region, universe, delay, phase, sharp_threshold, fitness_threshold)
+            
+        base_query += """
         )
         SELECT * FROM ranked_alphas 
         WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
@@ -260,7 +271,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         LIMIT 50
         """
         
-        cursor.execute(detail_query, (region, universe, delay, phase, category, sharp_threshold, fitness_threshold))
+        cursor.execute(base_query, params)
         results = cursor.fetchall()
         
         cursor.close()

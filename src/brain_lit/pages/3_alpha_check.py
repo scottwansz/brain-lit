@@ -1,11 +1,10 @@
-import streamlit as st
-import sys
 import os
-import time
-import random
-import pandas as pd
+import sys
 
-from brain_lit.svc.check import check_by_query, get_check_task_manager
+import pandas as pd
+import streamlit as st
+
+from brain_lit.svc.check import get_check_task_manager
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -74,6 +73,9 @@ if st.session_state.get('submittable_alpha_stats'):
     if category_counts:
         st.subheader("各分类可检查Alpha数量")
         
+        # 添加"全选"复选框
+        select_all = st.checkbox("全选", key='select_all_categories')
+        
         # 构建选项列表
         category_options = [f"{row['category']} ({row['count']}个)" for row in category_counts]
         
@@ -84,6 +86,10 @@ if st.session_state.get('submittable_alpha_stats'):
         # 使用st.session_state来跟踪当前选中的分类
         if 'current_selected_category' not in st.session_state:
             st.session_state.current_selected_category = st.session_state.selected_category_radio
+            
+        # 如果选择了"全选"，则显示特殊标记
+        if select_all:
+            st.info("已选择全部分类")
         
         # 创建水平布局的按钮组来模拟radio按钮
         num_categories = len(category_options)
@@ -98,10 +104,8 @@ if st.session_state.get('submittable_alpha_stats'):
                 with cols[col_idx]:
                     # 如果这个分类被选中，显示为primary按钮，否则显示为secondary
                     button_type = "primary" if option == st.session_state.current_selected_category else "secondary"
-                    if st.button(option, key=f"cat_btn_{i}", type=button_type):
+                    if st.button(option, key=f"cat_btn_{i}", type=button_type, disabled=select_all):
                         st.session_state.current_selected_category = option
-                        # 更新需要查询详细信息的标志
-                        st.session_state.need_detail_query = True
                         # 重新运行以更新按钮状态
                         st.rerun()
         
@@ -111,27 +115,19 @@ if st.session_state.get('submittable_alpha_stats'):
         # 提取选中的分类名
         chosen_category = selected_category.split(" (")[0] if selected_category else None
         
-        # 检查是否需要查询详细信息
-        need_detail_query = st.session_state.get('need_detail_query', False)
-        
-        if need_detail_query and chosen_category:
-            # 查询选中分类的详细Alpha信息
-            alpha_details = query_checkable_alpha_details(region, universe, delay, phase_value, chosen_category, sharp_val, fitness_val)
-            
-            # 保存当前选中分类的详细信息到session_state
-            st.session_state.current_category_details = alpha_details
-            st.session_state.current_chosen_category = chosen_category
-            # 重置查询标志
-            st.session_state.need_detail_query = False
-        else:
-            # 使用之前缓存的详细信息（如果选中的分类没有改变）
-            if st.session_state.get('current_chosen_category') == chosen_category:
-                alpha_details = st.session_state.get('current_category_details', [])
-            else:
-                alpha_details = []
+        # 如果选择了"全选"，则将chosen_category设置为None
+        if st.session_state.get('select_all_categories', False):
+            chosen_category = None
+
+        # 查询选中分类的详细Alpha信息
+        alpha_details = query_checkable_alpha_details(region, universe, delay, phase_value, chosen_category, sharp_val, fitness_val)
+
+        # 保存当前选中分类的详细信息到session_state
+        st.session_state.current_category_details = alpha_details
+        st.session_state.current_chosen_category = chosen_category
         
         # 显示详细信息表格
-        if alpha_details and chosen_category:
+        if alpha_details:
             st.subheader(f"{chosen_category}分类下的可检查Alpha")
             df = pd.DataFrame(alpha_details)
             # 移除不需要的列
@@ -151,7 +147,7 @@ if st.session_state.get('submittable_alpha_stats'):
                 if selected_alpha:
                     st.session_state['pending_alpha'] = selected_alpha['alpha']
                     st.success(f"已选择Alpha: {selected_alpha_name}")
-        elif need_detail_query and chosen_category:
+        else:
             st.info("该分类下暂无可检查的Alpha")
     else:
         st.info("暂无可检查的Alpha")
@@ -185,16 +181,22 @@ with col3:
 
         # 提取选中的分类名
         chosen_category = selected_category.split(" (")[0] if selected_category else None
+        
+        # 如果选择了"全选"，则不传category参数
+        if st.session_state.get('select_all_categories', False):
+            chosen_category = None
 
         query = {
             "region": region,
             "universe": universe,
             "delay": delay,
             "phase": phase_value,
-            "category": chosen_category,
             "sharp_threshold": sharp_val,
             "fitness_threshold": fitness_val
         }
+
+        if chosen_category:
+            query["category"] = chosen_category
 
         task_manager.start(query=query)
 

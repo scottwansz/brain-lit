@@ -88,7 +88,7 @@ def render_sidebar():
             st.switch_page("app.py")
         if st.button("📈 生成Alpha"):
             st.switch_page("pages/1_alpha_generate.py")
-        if st.button("🔬 Simulate Alpha"):
+        if st.button("🔬 回测Alpha"):
             st.switch_page("pages/2_alpha_simulate.py")
         if st.button("📤 检查Alpha"):
             st.switch_page("pages/3_alpha_check.py")
