@@ -9,17 +9,17 @@ from brain_lit.svc.submit import submit_alpha
 from brain_lit.alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
 from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
 from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
-from brain_lit.svc.alpha_query import query_submittable_alpha_details
+from brain_lit.svc.alpha_query import query_checkable_alpha_details
 from brain_lit.svc.database import update_table
 
 logger = setup_logger(__name__)
 
 @st.cache_resource
-def get_check_and_submit_task_manager():
-    return CheckAndSubmitTaskManager()
+def get_check_task_manager():
+    return CheckTaskManager()
 
 
-class CheckAndSubmitTaskManager:
+class CheckTaskManager:
     def __init__(self):
         self.session = get_auto_login_session()
         self.status = {
@@ -128,7 +128,7 @@ def check_by_query(task:dict):
             "details": "Preparing...",
         })
 
-        alpha_list = query_submittable_alpha_details(**task.get('query'))
+        alpha_list = query_checkable_alpha_details(**task.get('query'))
 
         if len(alpha_list) > 0:
             check_one_batch(region, alpha_list, task)
@@ -213,31 +213,31 @@ def check_one_batch(region, alpha_list, task):
             table_name = f'{region.lower()}_alphas'
             update_table(table_name, {'id': record['id']}, set_data)
 
-            # 如果没有失败原因，则尝试提交alpha策略
-            if len(fail_reasons) == 0:
-                success, error = submit_alpha(session, record['alpha_id'], region)
-                if success:
-
-                    alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
-                    alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
-                    print(f'\nalpha_desc generated: \n{alpha_desc}\n')
-
-                    update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
-                                       alpha_desc=alpha_desc)
-
-                    submitted_count += 1
-                    task.update({
-                        "submitted_count": submitted_count,
-                    })
-                    if submitted_count >= 4:
-                        return True
-                else:
-                    if error in ['REGULAR_SUBMISSION_LIMIT']:
-                        logger.warning("SUBMISSION limit reached, breaking...")
-                        task.update({
-                            "details": "SUBMISSION limit reached",
-                        })
-                        return True
+            # # 如果没有失败原因，则尝试提交alpha策略
+            # if len(fail_reasons) == 0:
+            #     success, error = submit_alpha(session, record['alpha_id'], region)
+            #     if success:
+            #
+            #         alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
+            #         alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
+            #         print(f'\nalpha_desc generated: \n{alpha_desc}\n')
+            #
+            #         update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
+            #                            alpha_desc=alpha_desc)
+            #
+            #         submitted_count += 1
+            #         task.update({
+            #             "submitted_count": submitted_count,
+            #         })
+            #         if submitted_count >= 4:
+            #             return True
+            #     else:
+            #         if error in ['REGULAR_SUBMISSION_LIMIT']:
+            #             logger.warning("SUBMISSION limit reached, breaking...")
+            #             task.update({
+            #                 "details": "SUBMISSION limit reached",
+            #             })
+            #             return True
 
         # 更新任务进度
         task.update({

@@ -1,12 +1,77 @@
 import logging
+import threading
+
+import streamlit as st
 import time
 import json
 
+from brain_lit.alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
+from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
 from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession
-from brain_lit.svc.database import update_table
+from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
+from brain_lit.svc.database import update_table, query_table
 
 logger = setup_logger(__name__)
+
+@st.cache_resource
+def get_check_and_submit_task_manager():
+    return SubmitTaskManager()
+
+
+class SubmitTaskManager:
+    def __init__(self):
+        self.session = get_auto_login_session()
+        self.status = {
+            "stop": False,
+            "submitted_count": 0,
+            "progress": 0,
+            "status": "WAITE",
+            "details": "Preparing...",
+        }
+
+    def start(self, query: dict):
+        self.status.update({
+            "stop": False,
+            "query": query,
+        })
+        thread = threading.Thread(target=submit_task, args=(self.status,), daemon=True)
+        thread.start()
+
+def submit_task(status: dict):
+    region = status.get('query').get('region')
+    table_name = f"{status.get('query').get('region').lower()}_alphas"
+    records = query_table(table_name, status.get("query"))
+
+    submitted_count = status.get("submitted_count")
+    session = get_auto_login_session()
+
+    for record in records:
+        success, error = submit_alpha(session, record['alpha_id'], region)
+
+        if success:
+
+            alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
+            alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
+            print(f'\nalpha_desc generated: \n{alpha_desc}\n')
+
+            update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
+                               alpha_desc=alpha_desc)
+
+            submitted_count += 1
+            status.update({
+                "submitted_count": submitted_count,
+            })
+            if submitted_count >= 4:
+                return True
+        else:
+            if error in ['REGULAR_SUBMISSION_LIMIT']:
+                logger.warning("SUBMISSION limit reached, breaking...")
+                status.update({
+                    "details": "SUBMISSION limit reached",
+                })
+                return True
+    return None
+
 
 def get_submitted_alphas_brain(s: AutoLoginSession):
     result = []

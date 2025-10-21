@@ -163,7 +163,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         return []
 
 
-def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
+def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
     """
     查询可提交的Alpha统计数据（按分类分组）
     
@@ -217,7 +217,7 @@ def query_submittable_alpha_stats(region: str, universe: str, delay: int, phase:
         return []
 
 
-def query_submittable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
+def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
     """
     查询指定分类下可提交的Alpha详细信息
     

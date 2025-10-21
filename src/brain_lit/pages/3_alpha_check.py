@@ -5,14 +5,14 @@ import time
 import random
 import pandas as pd
 
-from brain_lit.svc.check import check_by_query, get_check_and_submit_task_manager
+from brain_lit.svc.check import check_by_query, get_check_task_manager
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from brain_lit.logger import setup_logger
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.alpha_query import query_submittable_alpha_stats, query_submittable_alpha_details
+from brain_lit.svc.alpha_query import query_checkable_alpha_stats, query_checkable_alpha_details
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -20,10 +20,10 @@ logger = setup_logger(__name__)
 # 渲染共享的侧边栏
 render_sidebar()
 
-st.title("📤 提交Alpha")
+st.title("📤 检查Alpha")
 
 # 主要内容区域
-st.markdown("在本页面您可以提交经过验证的Alpha表达式。")
+st.markdown("在本页面您可以提交Alpha检查任务。")
 
 # Phase输入栏位和统计按钮
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
@@ -36,7 +36,7 @@ with col3:
 with col4:
     st.write("")  # 空白行用于对齐
     st.write("")
-    query_button = st.button("统计可提交的Alpha", type="primary")
+    query_button = st.button("统计可检查的Alpha", type="primary")
 
 # 显示分类统计信息
 if query_button:
@@ -55,7 +55,7 @@ if query_button:
     fitness_val = st.session_state.get('fitness_threshold', 0.8)
     
     # 查询各分类下的Alpha数量
-    category_counts = query_submittable_alpha_stats(region, universe, delay, phase_value, sharp_val, fitness_val)
+    category_counts = query_checkable_alpha_stats(region, universe, delay, phase_value, sharp_val, fitness_val)
     
     # 保存分类统计结果到session_state
     st.session_state.category_counts = category_counts
@@ -72,7 +72,7 @@ if st.session_state.get('submittable_alpha_stats'):
     category_counts = st.session_state.get('category_counts', [])
     
     if category_counts:
-        st.subheader("各分类可提交Alpha数量")
+        st.subheader("各分类可检查Alpha数量")
         
         # 构建选项列表
         category_options = [f"{row['category']} ({row['count']}个)" for row in category_counts]
@@ -116,7 +116,7 @@ if st.session_state.get('submittable_alpha_stats'):
         
         if need_detail_query and chosen_category:
             # 查询选中分类的详细Alpha信息
-            alpha_details = query_submittable_alpha_details(region, universe, delay, phase_value, chosen_category, sharp_val, fitness_val)
+            alpha_details = query_checkable_alpha_details(region, universe, delay, phase_value, chosen_category, sharp_val, fitness_val)
             
             # 保存当前选中分类的详细信息到session_state
             st.session_state.current_category_details = alpha_details
@@ -132,7 +132,7 @@ if st.session_state.get('submittable_alpha_stats'):
         
         # 显示详细信息表格
         if alpha_details and chosen_category:
-            st.subheader(f"{chosen_category}分类下的可提交Alpha")
+            st.subheader(f"{chosen_category}分类下的可检查Alpha")
             df = pd.DataFrame(alpha_details)
             # 移除不需要的列
             columns_to_drop = [col for col in df.columns if col in ['rn', 'simulated', 'passed']]
@@ -141,7 +141,7 @@ if st.session_state.get('submittable_alpha_stats'):
             
             # 提供选择功能
             selected_alpha_name = st.selectbox(
-                "选择一个Alpha进行提交:",
+                "选择一个Alpha进行检查:",
                 [row['name'] for row in alpha_details]
             )
             
@@ -152,26 +152,26 @@ if st.session_state.get('submittable_alpha_stats'):
                     st.session_state['pending_alpha'] = selected_alpha['alpha']
                     st.success(f"已选择Alpha: {selected_alpha_name}")
         elif need_detail_query and chosen_category:
-            st.info("该分类下暂无可提交的Alpha")
+            st.info("该分类下暂无可检查的Alpha")
     else:
-        st.info("暂无可提交的Alpha")
+        st.info("暂无可检查的Alpha")
 
 # 显示Alpha表达式
-st.subheader("待提交的Alpha表达式")
+st.subheader("待检查的Alpha表达式")
 pending_alpha = st.session_state.get('pending_alpha', '')
 if pending_alpha:
     st.code(pending_alpha, language="python")
 else:
-    st.info("暂无待提交的Alpha表达式")
+    st.info("暂无待检查的Alpha表达式")
 
 # 操作按钮
 st.markdown("---")
 col3, col4, col5 = st.columns([1, 1, 4])
 
-task_manager = get_check_and_submit_task_manager()
+task_manager = get_check_task_manager()
 
 with col3:
-    if st.button("提交Alpha", type="primary"):
+    if st.button("检查Alpha", type="primary"):
         # 获取侧边栏条件
         region = st.session_state.get('selected_region', 'CHN')
         universe = st.session_state.get('selected_universe', 'TOP2000U')
@@ -198,11 +198,11 @@ with col3:
 
         task_manager.start(query=query)
 
-if col4.button("提交状态"):
+if col4.button("检查状态"):
     # 显示simulate_tasks信息
-    st.write("当前提交状态信息:")
+    st.write("当前检查状态信息:")
     st.json(task_manager.status)
 
-if col5.button("停止提交"):
+if col5.button("停止检查"):
     task_manager.status["stop"] = True
     task_manager.status["details"] = "Stopped by user"

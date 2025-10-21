@@ -11,7 +11,7 @@ logger = setup_logger(__name__)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.alpha_query import query_submittable_alpha_details
+from brain_lit.svc.alpha_query import query_checkable_alpha_details
 from brain_lit.svc.database import batch_insert_records
 
 # 渲染共享的侧边栏
@@ -43,7 +43,7 @@ if st.button("查询最佳Alphas"):
     st.session_state.new_alphas_to_save = None
     with st.spinner("正在查询最佳Alphas..."):
         # 调用查询函数获取最佳Alphas
-        best_alphas = query_submittable_alpha_details(
+        best_alphas = query_checkable_alpha_details(
             region=selected_region,
             universe=selected_universe,
             delay=selected_delay,
