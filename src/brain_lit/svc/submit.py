@@ -40,13 +40,17 @@ class SubmitTaskManager:
         thread.start()
 
 def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
-    region = status.get('query').get('region')
 
-    submitted_count = status.get("submitted_count")
+    submitted_count = status.get("submitted_count", 0)
     session = get_auto_login_session()
 
     for record in records:
-        success, error = submit_alpha(session, record['alpha_id'], region)
+        success, error = submit_alpha(session, record['alpha_id'], record['region'])
+
+        submitted_count += 1
+        status.update({
+            "submitted_count": submitted_count,
+        })
 
         if success:
 
@@ -57,18 +61,16 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
                                alpha_desc=alpha_desc)
 
-            submitted_count += 1
-            status.update({
-                "submitted_count": submitted_count,
-            })
             if submitted_count >= 4:
                 return True
         else:
+            logger.error(f"Failed to submit alpha {record.get('alpha_id')}: {error}")
+            status.update({
+                "details": error,
+            })
+
             if error in ['REGULAR_SUBMISSION_LIMIT']:
                 logger.warning("SUBMISSION limit reached, breaking...")
-                status.update({
-                    "details": "SUBMISSION limit reached",
-                })
                 return True
     return None
 
