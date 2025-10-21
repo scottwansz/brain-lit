@@ -299,7 +299,13 @@ def check_simulate_task(session: AutoLoginSession, task_info):
 
         else:
             simulate_info.update(response)
-            simulate_info['time_used'] = time.time() - simulate_info.get('start_time')
+            time_used = time.time() - simulate_info.get('start_time')
+            simulate_info['time_used'] = time_used
+
+            if time_used > 3600:
+                simulate_info.update({'end_time': time.time(), 'error': 'timeout'})
+                logger.warning("Simulate timeout: %s", simulate_id)
+
             logger.info("Simulate IN PROGRESS %s: %s", simulate_id, response)
 
 
