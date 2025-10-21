@@ -134,34 +134,11 @@ if st.session_state.get('submittable_alpha_stats'):
             columns_to_drop = [col for col in df.columns if col in ['rn', 'simulated', 'passed']]
             df = df.drop(columns=columns_to_drop)
             st.dataframe(df)
-            
-            # 提供选择功能
-            selected_alpha_name = st.selectbox(
-                "选择一个Alpha进行检查:",
-                [row['name'] for row in alpha_details]
-            )
-            
-            # 显示选中的Alpha表达式
-            if selected_alpha_name:
-                selected_alpha = next((row for row in alpha_details if row['name'] == selected_alpha_name), None)
-                if selected_alpha:
-                    st.session_state['pending_alpha'] = selected_alpha['alpha']
-                    st.success(f"已选择Alpha: {selected_alpha_name}")
         else:
             st.info("该分类下暂无可检查的Alpha")
     else:
         st.info("暂无可检查的Alpha")
 
-# 显示Alpha表达式
-st.subheader("待检查的Alpha表达式")
-pending_alpha = st.session_state.get('pending_alpha', '')
-if pending_alpha:
-    st.code(pending_alpha, language="python")
-else:
-    st.info("暂无待检查的Alpha表达式")
-
-# 操作按钮
-st.markdown("---")
 col3, col4, col5 = st.columns([1, 1, 4])
 
 task_manager = get_check_task_manager()
