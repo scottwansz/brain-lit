@@ -270,7 +270,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         SELECT * FROM ranked_alphas 
         WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
         ORDER BY abs(sharp*fitness) DESC 
-        LIMIT 50
+        LIMIT 500
         """
         
         cursor.execute(base_query, params)
