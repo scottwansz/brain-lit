@@ -24,6 +24,7 @@ class TestMain(unittest.TestCase):
         }
 
         task_info = {
+            "query": query,
             "stop": False,
             "submitted_count": 0,
             "progress": 0,
@@ -31,6 +32,6 @@ class TestMain(unittest.TestCase):
         }
 
         # check_alpha(session, 'OgXk5O7', task=task_info)
-        check_by_query(query, task=task_info)
+        check_by_query(task=task_info)
 
         self.assertEqual(1, 1)

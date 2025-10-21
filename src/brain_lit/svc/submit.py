@@ -22,6 +22,7 @@ def get_submit_task_manager():
 class SubmitTaskManager:
     def __init__(self):
         self.session = get_auto_login_session()
+        self.thread = None
         self.status = {
             "stop": False,
             "submitted_count": 0,
@@ -34,6 +35,7 @@ class SubmitTaskManager:
         self.status.update({
             "stop": False,
         })
+
         thread = threading.Thread(target=submit_task, args=(records, self.status,), daemon=True)
         thread.start()
 

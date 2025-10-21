@@ -1,7 +1,9 @@
 from typing import List, Dict, Any
 
+from brain_lit.logger import setup_logger
 from brain_lit.svc.database import get_db_connection
 
+logger = setup_logger(__name__)
 
 def query_alphas_by_dataset(region: str, universe: str, delay: int, dataset: str) -> List[Dict[str, Any]]:
     """
@@ -272,6 +274,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         """
         
         cursor.execute(base_query, params)
+        # logger.info('query_checkable_alpha_details SQL: %s', cursor.statement)
         results = cursor.fetchall()
         
         cursor.close()
@@ -279,7 +282,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         
         return results
     except Exception as e:
-        print(f"查询可提交Alpha详情时出错: {e}")
+        logger.error(f"查询可检查Alpha详情时出错: {e}")
         return []
 
 
@@ -378,5 +381,5 @@ def query_submittable_alpha_details(region: str, universe: str, delay: int, phas
         
         return results
     except Exception as e:
-        print(f"查询可提交Alpha详情时出错: {e}")
+        logger.error(f"查询可提交Alpha详情时出错: {e}")
         return []

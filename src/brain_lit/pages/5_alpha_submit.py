@@ -44,10 +44,10 @@ if query_button:
     phase_value = st.session_state.get('phase_value', '1')
     
     # 查询各分类下的Alpha数量
-    category_counts = query_submittable_alpha_stats(region, universe, delay, phase_value)
+    submittable_category_counts = query_submittable_alpha_stats(region, universe, delay, phase_value)
     
     # 保存分类统计结果到session_state
-    st.session_state.category_counts = category_counts
+    st.session_state.submittable_category_counts = submittable_category_counts
 
 # 如果已经查询过，显示之前的结果
 if st.session_state.get('submittable_alpha_stats'):
@@ -56,16 +56,16 @@ if st.session_state.get('submittable_alpha_stats'):
     universe = st.session_state.get('selected_universe', 'TOP2000U')
     delay = st.session_state.get('selected_delay', 1)
     phase_value = st.session_state.get('phase_value', '1')
-    category_counts = st.session_state.get('category_counts', [])
+    submittable_category_counts = st.session_state.get('submittable_category_counts', [])
     
-    if category_counts:
+    if submittable_category_counts:
         st.subheader("各分类可提交Alpha数量")
         
         # 添加"全选"复选框
         select_all = st.checkbox("全选", key='select_all_categories')
         
         # 构建选项列表
-        category_options = [f"{row['category']} ({row['count']}个)" for row in category_counts]
+        category_options = [f"{row['category']} ({row['count']}个)" for row in submittable_category_counts]
         
         # 初始化选中的分类
         if 'selected_category_radio' not in st.session_state:

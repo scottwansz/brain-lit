@@ -1,15 +1,14 @@
 import json
 import threading
+import time
+from typing import Any, Dict, List
 
 import streamlit as st
-import time
 
+from brain_lit.alpha_desc.alpha_desc_updater import update_brain_alpha
 from brain_lit.logger import setup_logger
-from brain_lit.svc.submit import submit_alpha
-from brain_lit.alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
-from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
-from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
 from brain_lit.svc.alpha_query import query_checkable_alpha_details
+from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
 from brain_lit.svc.database import update_table
 
 logger = setup_logger(__name__)
@@ -22,20 +21,21 @@ def get_check_task_manager():
 class CheckTaskManager:
     def __init__(self):
         self.session = get_auto_login_session()
+        self.thread = None
         self.status = {
             "stop": False,
-            "submitted_count": 0,
+            "passed_count": 0,
             "progress": 0,
             "status": "WAITE",
             "details": "Preparing...",
         }
 
-    def start(self, query: dict):
+    def start(self, records: List[Dict[str, Any]]):
         self.status.update({
             "stop": False,
-            "query": query,
         })
-        thread = threading.Thread(target=check_by_query, args=(self.status,), daemon=True)
+
+        thread = threading.Thread(target=check_one_batch, args=(records, self.status,), daemon=True)
         thread.start()
 
 
@@ -118,8 +118,6 @@ def check_by_query(task:dict):
         "details": "Preparing...",
     })
 
-    region = task.get('query').get('region', 'USA')
-
     while not task.get('stop'):
 
         task.update({
@@ -131,7 +129,7 @@ def check_by_query(task:dict):
         alpha_list = query_checkable_alpha_details(**task.get('query'))
 
         if len(alpha_list) > 0:
-            check_one_batch(region, alpha_list, task)
+            check_one_batch(alpha_list, task)
         else:
             task.update({
                 "status": "COMPLETED",
@@ -145,12 +143,11 @@ def check_by_query(task:dict):
     })
 
 
-def check_one_batch(region, alpha_list, task):
+def check_one_batch(alpha_list, task):
     """
     检查并可能提交一批alpha策略。
 
     参数:
-    - region: 区域标识，用于指定操作的区域。
     - alpha_list: 一个包含alpha策略信息的列表。
     - s: 一个表示当前会话或状态的对象。
     - task: 一个包含任务相关信息的字典。
@@ -159,8 +156,14 @@ def check_one_batch(region, alpha_list, task):
     - 是否中止: 如果任务完成(提交了4个alpha或者出现不能继续的错误)或被人为停止，则返回True，否则返回False。
     """
     # 初始化已提交计数
-    submitted_count = task.get('submitted_count', 0)
+    passed_count = task.get('passed_count', 0)
     session = get_auto_login_session()
+
+    task.update({
+        "status": "RUNNING",
+        "progress": 0,
+        "details": "Preparing...",
+    })
 
     # 遍历alpha列表
     for i, record in enumerate(alpha_list):
@@ -184,7 +187,7 @@ def check_one_batch(region, alpha_list, task):
         if 'ALREADY_SUBMITTED' in fail_reason_names:
             # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
             update_table(
-                f"{region.lower()}_alphas",
+                f"{record['region'].lower()}_alphas",
                 {'alpha_id': record['alpha_id']},
                 {'passed': 1, 'submitted': 1}
             )
@@ -209,42 +212,24 @@ def check_one_batch(region, alpha_list, task):
                 'fail_reasons': json.dumps(fail_reasons)
             }
 
-            # 更新数据库
-            table_name = f'{region.lower()}_alphas'
-            update_table(table_name, {'id': record['id']}, set_data)
+            passed_count += 1 if len(fail_reasons) == 0 else 0
 
-            # # 如果没有失败原因，则尝试提交alpha策略
-            # if len(fail_reasons) == 0:
-            #     success, error = submit_alpha(session, record['alpha_id'], region)
-            #     if success:
-            #
-            #         alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
-            #         alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
-            #         print(f'\nalpha_desc generated: \n{alpha_desc}\n')
-            #
-            #         update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
-            #                            alpha_desc=alpha_desc)
-            #
-            #         submitted_count += 1
-            #         task.update({
-            #             "submitted_count": submitted_count,
-            #         })
-            #         if submitted_count >= 4:
-            #             return True
-            #     else:
-            #         if error in ['REGULAR_SUBMISSION_LIMIT']:
-            #             logger.warning("SUBMISSION limit reached, breaking...")
-            #             task.update({
-            #                 "details": "SUBMISSION limit reached",
-            #             })
-            #             return True
+            # 更新数据库
+            table_name = f'{record['region'].lower()}_alphas'
+            update_table(table_name, {'id': record['id']}, set_data)
 
         # 更新任务进度
         task.update({
             "progress": round((i+1) / len(alpha_list) * 100),
+            "passed_count": passed_count,
             "details": f"Processing {i+1} out of {len(alpha_list)} Alphas"
         })
 
     # 如果所有alphas都被处理，则返回False
+    task.update({
+        "status": "COMPLETED",
+        "stop": True,
+        "details": "All alphas checked"
+    })
     return False
 
