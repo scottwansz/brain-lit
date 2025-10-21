@@ -15,7 +15,7 @@ from brain_lit.svc.database import update_table, query_table
 logger = setup_logger(__name__)
 
 @st.cache_resource
-def get_check_and_submit_task_manager():
+def get_submit_task_manager():
     return SubmitTaskManager()
 
 
