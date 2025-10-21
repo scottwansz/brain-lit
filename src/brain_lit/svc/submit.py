@@ -1,5 +1,6 @@
 import logging
 import threading
+from typing import Any, List, Dict
 
 import streamlit as st
 import time
@@ -29,18 +30,15 @@ class SubmitTaskManager:
             "details": "Preparing...",
         }
 
-    def start(self, query: dict):
+    def start(self, records:List[Dict[str, Any]]):
         self.status.update({
             "stop": False,
-            "query": query,
         })
-        thread = threading.Thread(target=submit_task, args=(self.status,), daemon=True)
+        thread = threading.Thread(target=submit_task, args=(records, self.status,), daemon=True)
         thread.start()
 
-def submit_task(status: dict):
+def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
     region = status.get('query').get('region')
-    table_name = f"{status.get('query').get('region').lower()}_alphas"
-    records = query_table(table_name, status.get("query"))
 
     submitted_count = status.get("submitted_count")
     session = get_auto_login_session()
