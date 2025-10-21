@@ -22,6 +22,22 @@ def get_db_connection():
         print(f"数据库连接失败: {e}")
         return None
 
+def query_by_sql(sql: str) -> List[Dict[str, Any]]:
+    """
+    :param sql:
+    :return:
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return []
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        return results
+    except Exception as e:
+        print(f"查询数据库时出错: {e}")
+        return []
 
 def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int] = None, offset: Optional[int] = None) -> List[Dict[str, Any]]:
     """
