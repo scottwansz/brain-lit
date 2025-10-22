@@ -49,7 +49,7 @@ with col_n_task_max:
 
 # 操作按钮
 st.markdown("---")
-col_stats, col_simulate_status, col_start_simulate, col_stop_simulate, _ = st.columns([1, 1, 1, 1, 4])
+col_stats, col_start_simulate, col_simulate_status, col_stop_simulate, _ = st.columns([1, 1, 1, 1, 4])
 
 # 统计信息按钮
 if col_stats.button("统计信息", type="primary"):
