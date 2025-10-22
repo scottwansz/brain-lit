@@ -37,6 +37,7 @@ class SubmitTaskManager:
             "submitted_count": 0,
             "progress": 0,
             "status": "RUNNING",
+            "details": "Starting...",
         })
 
         thread = threading.Thread(target=submit_task, args=(records, self.status,), daemon=True)
