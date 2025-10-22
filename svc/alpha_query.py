@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 
-from brain_lit.logger import setup_logger
-from brain_lit.svc.database import get_db_connection
+from svc.database import get_db_connection
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Optional
 import requests
 import streamlit as st
 
-from brain_lit.logger import setup_logger
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -1,15 +1,14 @@
 import streamlit as st
-import time
 import sys
 import os
-import logging
 import streamlit_js_eval
+
+from sidebar import render_sidebar
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from brain_lit.logger import setup_logger
-from brain_lit.sidebar import render_sidebar
+from svc.logger import setup_logger
 
 # 设置logger
 logger = setup_logger(__name__)

@@ -1,8 +1,7 @@
 import unittest
 
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import get_auto_login_session
-from brain_lit.svc.check import check_alpha, check_by_query
+from svc.logger import setup_logger
+from svc import check_by_query
 
 logger = setup_logger(__name__)
 

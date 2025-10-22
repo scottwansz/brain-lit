@@ -3,16 +3,16 @@ import pandas as pd
 import sys
 import os
 
-from brain_lit.logger import setup_logger
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.alpha_query import query_checkable_alpha_details
-from brain_lit.svc.database import batch_insert_records
+from sidebar import render_sidebar
+from svc.alpha_query import query_checkable_alpha_details
+from svc.database import batch_insert_records, update_table
 
 # 渲染共享的侧边栏
 render_sidebar()
@@ -39,7 +39,7 @@ with col3:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
 
 # 查询按钮
-if st.button("查询最佳Alphas"):
+if st.button("查询最佳Alphas", type="primary"):
     st.session_state.new_alphas_to_save = None
     with st.spinner("正在查询最佳Alphas..."):
         # 调用查询函数获取最佳Alphas
@@ -48,7 +48,7 @@ if st.button("查询最佳Alphas"):
             universe=selected_universe,
             delay=selected_delay,
             phase=phase,
-            category=selected_category,
+            category=None if selected_category == "" else selected_category,
             sharp_threshold=sharp_threshold,
             fitness_threshold=fitness_threshold
         )
@@ -113,7 +113,7 @@ selected_neutralization_opts = st.multiselect(
 new_phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=2, step=1)
 
 # 生成Risk Neutralization Alphas按钮
-if st.button("生成Risk Neutralization Alphas", type="primary"):
+if st.button("生成Risk Neutralization Alphas"):
     # 检查是否有选中的alphas
     if "best_alphas" not in st.session_state:
         st.warning("请先查询最佳Alphas")
@@ -124,6 +124,11 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
     else:
         # 获取选中的alphas
         selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
+
+        # 更新原记录使用状态
+        old_ids = [alpha.get('id') for alpha in selected_alphas]
+        table_name = f"{selected_region.lower()}_alphas"
+        update_table(table_name, {'id': old_ids}, {"used": 1})
         
         # 生成新的alphas（模拟过程）
         new_alphas = []
@@ -147,7 +152,7 @@ if st.button("生成Risk Neutralization Alphas", type="primary"):
                 st.session_state.new_alphas_to_save = new_alphas
 
 # 显示新生成的alphas
-if st.session_state.new_alphas_to_save:
+if st.session_state.get("new_alphas_to_save"):
     new_alphas = st.session_state.new_alphas_to_save
     st.subheader("新生成的Risk Neutralization Alphas")
     new_df = pd.DataFrame(new_alphas)

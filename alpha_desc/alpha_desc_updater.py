@@ -6,8 +6,8 @@ from typing import Optional, List
 
 import requests
 
-from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
-from brain_lit.svc.auth import AutoLoginSession
+from alpha_desc.ask_ai import ask_dashscope, ai_prompt
+from svc.auth import AutoLoginSession
 
 logger = logging.getLogger(__name__)
 

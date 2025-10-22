@@ -2,9 +2,9 @@ from urllib.parse import urlencode
 
 import streamlit as st
 
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import get_auto_login_session
-from brain_lit.svc.database import get_db_connection
+from svc.auth import get_auto_login_session
+from svc.database import get_db_connection
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -6,11 +6,11 @@ import streamlit as st
 import time
 import json
 
-from brain_lit.alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
-from brain_lit.alpha_desc.ask_ai import ask_dashscope, ai_prompt
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
-from brain_lit.svc.database import update_table, query_table
+from alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
+from alpha_desc.ask_ai import ask_dashscope, ai_prompt
+from svc.auth import get_auto_login_session, AutoLoginSession
+from svc.database import update_table
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -34,6 +34,9 @@ class SubmitTaskManager:
     def start(self, records:List[Dict[str, Any]]):
         self.status.update({
             "stop": False,
+            "submitted_count": 0,
+            "progress": 0,
+            "status": "RUNNING",
         })
 
         thread = threading.Thread(target=submit_task, args=(records, self.status,), daemon=True)
@@ -64,7 +67,7 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             if submitted_count >= 4:
                 return True
         else:
-            logger.error(f"Failed to submit alpha {record.get('alpha_id')}: {error}")
+            # logger.error(f"Failed to submit alpha {record.get('alpha_id')}: {error}")
             status.update({
                 "details": error,
             })
@@ -125,7 +128,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region):
 
     response = s.post(url)  # response.status_code 201 and no response.json()
     logger.info(f"Submit alpha {alpha_id} status code %s: %s", response.status_code, response.text)
-    # print(url, response.status_code, response.text)
+
     # 400 Bad Request 其它程序正在提交中
     # 403 Forbidden error_reached_quota
 
@@ -145,44 +148,43 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region):
             logger.info(f'Submitting alpha {alpha_id}... time used: {round(time.time() - time_start)}.')
             response = s.get(url)
 
-    success = False
-    error = 'UNKNOWN'
-
-    if response.status_code == 200:
-        logger.info(f"Alpha {alpha_id} submitted successfully.")
+    if response.status_code == 200 or response.status_code == 404:
         table_name = f"{region.lower()}_alphas"
         update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
-        success = True
+        logger.info(f"Alpha {alpha_id} submitted successfully.")
+        return True, None
 
-    else:
-        logger.error(f"Failed to submit alpha {alpha_id}: {response.status_code} - {response.text}")
-        # 404
-        # 504 Gateway Time-out
+    # 404
+    # 504 Gateway Time-out
 
-        if response.status_code == 403:
+    if response.status_code == 403:
 
-            checks = response.json().get('is', {}).get('checks', [])
+        checks = response.json().get('is', {}).get('checks', [])
 
-            if error_reached_quota in checks:
-                error = 'REGULAR_SUBMISSION_LIMIT'
-
-            elif error_already_submitted in checks:
-                error = 'ALREADY_SUBMITTED'
-                update_table(f"{region.lower()}_alphas", {'alpha_id': alpha_id}, {'submitted': 1})
-
-            else:
-                # 检查未通过的情形，如sharp值小于1.58
-                fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
-                set_data = {
-                    'passed': 1 if len(fail_reasons) == 0 else -1,
-                    'fail_reasons': json.dumps(fail_reasons)
-                }
-
-                update_table(f"{region.lower()}_alphas", {'alpha_id': alpha_id}, set_data)
-                error = 'CHECK_FAIL'
-
-        elif response.status_code == 429:  # Too Many Requests
-            # print('429 Too Many Requests')
+        if error_reached_quota in checks:
             error = 'REGULAR_SUBMISSION_LIMIT'
 
-    return success, error
+        elif error_already_submitted in checks:
+            error = 'ALREADY_SUBMITTED'
+            update_table(f"{region.lower()}_alphas", {'alpha_id': alpha_id}, {'submitted': 1})
+
+        else:
+            # 检查未通过的情形，如sharp值小于1.58
+            fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
+            set_data = {
+                'passed': 1 if len(fail_reasons) == 0 else -1,
+                'fail_reasons': json.dumps(fail_reasons)
+            }
+
+            update_table(f"{region.lower()}_alphas", {'alpha_id': alpha_id}, set_data)
+            error = fail_reasons
+
+    elif response.status_code == 429:  # Too Many Requests
+        # print('429 Too Many Requests')
+        error = 'REGULAR_SUBMISSION_LIMIT'
+
+    else:
+        error = f'{response.status_code} - {response.text}'
+
+    logger.error(f"Fail to submit alpha {alpha_id}: {error}")
+    return False, error

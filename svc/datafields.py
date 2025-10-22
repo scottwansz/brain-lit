@@ -1,7 +1,5 @@
-import requests
-
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import get_auto_login_session
+from svc.auth import get_auto_login_session
+from svc.logger import setup_logger
 
 url = "https://api.worldquantbrain.com/data-fields"
 

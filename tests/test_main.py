@@ -2,13 +2,13 @@ import unittest
 import sys
 import os
 
-from brain_lit.svc.alpha_query import query_alphas_simulation_stats
+from svc import query_alphas_simulation_stats
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 # 直接导入main函数
-from brain_lit.main import main
+from brain_lit import main
 
 class TestMain(unittest.TestCase):
     def test_main(self):

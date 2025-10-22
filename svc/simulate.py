@@ -7,9 +7,9 @@ from typing import DefaultDict
 
 import streamlit as st
 
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
-from brain_lit.svc.database import query_table, update_table
+from svc.auth import get_auto_login_session, AutoLoginSession
+from svc.database import query_table, update_table
+from svc.logger import setup_logger
 
 simulation_url = 'https://api.worldquantbrain.com/simulations'
 

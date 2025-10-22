@@ -1,6 +1,6 @@
 import unittest
 
-from brain_lit.svc.database import query_table, query_by_sql, batch_insert_records
+from svc.database import query_by_sql, batch_insert_records, update_table
 
 
 class TestNeutralize(unittest.TestCase):
@@ -18,15 +18,20 @@ class TestNeutralize(unittest.TestCase):
                        ORDER BY abs(sharp*fitness) DESC
                    ) AS rn
             FROM {table_name}
-            WHERE phase = 1 AND simulated = 1 AND sharp > 1 and fitness >0.8
+            WHERE phase = 1 AND simulated = 1 AND sharp > 1 and fitness > 0.8 and updated_at > '2025-10-21'
         )
-        select * from ranked_alphas where rn = 1
+        select * from ranked_alphas where rn = 1 and used is null
+        -- update {table_name} set used=1 WHERE (id) IN (SELECT id FROM ranked_alphas WHERE rn = 1)
         """
 
         # selected_alphas = query_table(table_name, {'passed': 1})
         selected_alphas = query_by_sql( sql)
 
         print('len(selected_alphas):', len(selected_alphas))
+
+        # 更新原记录使用状态
+        old_ids = [alpha.get('id') for alpha in selected_alphas]
+        update_table(table_name, {'id': old_ids}, {"used": 1})
 
         new_alphas = []
         selected_neutralization_opts = ["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]

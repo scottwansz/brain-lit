@@ -4,14 +4,14 @@ import sys
 import pandas as pd
 import streamlit as st
 
-from brain_lit.svc.check import get_check_task_manager
+from svc.check import get_check_task_manager
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from brain_lit.logger import setup_logger
-from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.alpha_query import query_checkable_alpha_stats, query_checkable_alpha_details
+from svc.logger import setup_logger
+from sidebar import render_sidebar
+from svc.alpha_query import query_checkable_alpha_stats, query_checkable_alpha_details
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 # 渲染共享的侧边栏
 render_sidebar()
 
-st.title("📤 检查Alpha")
+st.title("✅ 检查Alpha")
 
 # 主要内容区域
 st.markdown("在本页面您可以提交Alpha检查任务。")

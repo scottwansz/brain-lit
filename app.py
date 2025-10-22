@@ -1,13 +1,11 @@
 import os
 import sys
 
-import streamlit as st
-
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from main_page import render_main_page
-from brain_lit.logger import setup_logger
+from pages.home import render_main_page
+from svc.logger import setup_logger
 
 # 设置logger
 logger = setup_logger(__name__)

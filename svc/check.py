@@ -5,11 +5,11 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from brain_lit.alpha_desc.alpha_desc_updater import update_brain_alpha
-from brain_lit.logger import setup_logger
-from brain_lit.svc.alpha_query import query_checkable_alpha_details
-from brain_lit.svc.auth import AutoLoginSession, get_auto_login_session
-from brain_lit.svc.database import update_table
+from alpha_desc.alpha_desc_updater import update_brain_alpha
+from svc.alpha_query import query_checkable_alpha_details
+from svc.auth import get_auto_login_session, AutoLoginSession
+from svc.database import update_table
+from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -162,6 +162,7 @@ def check_one_batch(alpha_list, task):
     task.update({
         "status": "RUNNING",
         "progress": 0,
+        "passed_count": 0,
         "details": "Preparing...",
     })
 

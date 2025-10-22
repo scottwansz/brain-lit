@@ -7,10 +7,10 @@ import streamlit as st
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from brain_lit.logger import setup_logger
-from brain_lit.sidebar import render_sidebar
-from brain_lit.svc.alpha_query import query_submittable_alpha_stats, query_submittable_alpha_details
-from brain_lit.svc.submit import get_submit_task_manager
+from svc.logger import setup_logger
+from sidebar import render_sidebar
+from svc.alpha_query import query_submittable_alpha_stats, query_submittable_alpha_details
+from svc.submit import get_submit_task_manager
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -24,11 +24,12 @@ st.title("📤 提交Alpha")
 st.markdown("在本页面您可以提交已通过检查的Alpha。")
 
 # Phase输入栏位和统计按钮
-col1, col2 = st.columns([1, 1])
+col1, col2, _ = st.columns([1, 1, 2])
 with col1:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
 with col2:
     st.write("")  # 空白行用于对齐
+    st.write("")
     query_button = st.button("统计可提交的Alpha", type="primary")
 
 # 显示分类统计信息
@@ -151,23 +152,22 @@ col3, col4, col5 = st.columns([1, 1, 4])
 
 task_manager = get_submit_task_manager()
 
-with col3:
-    if st.button("提交Alpha", type="primary"):
-        # 获取选中的数据
-        if 'selected_rows' in st.session_state and 'df' in st.session_state:
-            selected_df = st.session_state.df.iloc[st.session_state.selected_rows]
-            if not selected_df.empty:
-                # 转换为记录列表
-                records = selected_df.to_dict('records')
-                
-                # 提交选中的Alpha
-                task_manager.start(records=records)
-                
-                st.success(f"开始提交 {len(records)} 个Alpha")
-            else:
-                st.warning("请先选择要提交的Alpha")
+if col3.button("提交Alpha", type="primary"):
+    # 获取选中的数据
+    if 'selected_rows' in st.session_state and 'df' in st.session_state:
+        selected_df = st.session_state.df.iloc[st.session_state.selected_rows]
+        if not selected_df.empty:
+            # 转换为记录列表
+            records = selected_df.to_dict('records')
+
+            # 提交选中的Alpha
+            task_manager.start(records=records)
+
+            st.success(f"开始提交 {len(records)} 个Alpha")
         else:
-            st.warning("请先查询并选择要提交的Alpha")
+            st.warning("请先选择要提交的Alpha")
+    else:
+        st.warning("请先查询并选择要提交的Alpha")
 
 if col4.button("检查状态"):
     # 显示提交状态信息

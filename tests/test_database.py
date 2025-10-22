@@ -1,9 +1,8 @@
 import unittest
 import mysql.connector
 import streamlit as st
-from typing import Dict, Any, List
 
-from brain_lit.svc.database import insert_record, batch_insert_records, query_table, update_table
+from svc.database import insert_record, batch_insert_records, query_table, update_table
 
 
 class TestDatabaseOperations(unittest.TestCase):

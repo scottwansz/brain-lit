@@ -10,7 +10,7 @@ import streamlit_js_eval
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from brain_lit.logger import setup_logger
+from svc.logger import setup_logger
 
 # 设置logger
 logger = setup_logger(__name__)

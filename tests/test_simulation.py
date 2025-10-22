@@ -2,9 +2,9 @@ import time
 import unittest
 from typing import DefaultDict
 
-from brain_lit.logger import setup_logger
-from brain_lit.svc.auth import AutoLoginSession
-from brain_lit.svc.simulate import get_unsimulated_records, check_progress, \
+from svc.logger import setup_logger
+from svc import AutoLoginSession
+from svc.simulate import get_unsimulated_records, check_progress, \
     submit_simulation_task, check_simulate_task
 
 logger = setup_logger(__name__)
