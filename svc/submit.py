@@ -75,6 +75,10 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             if error in ['REGULAR_SUBMISSION_LIMIT']:
                 logger.warning("SUBMISSION limit reached, breaking...")
                 return True
+
+    status.update({
+        "status": "COMPLETED",
+    })
     return None
 
 
