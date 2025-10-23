@@ -28,7 +28,7 @@ class TestNeutralize(unittest.TestCase):
         selected_alphas = query_by_sql( sql)
 
         # 排除best_alphas中used属性为1的记录
-        best_alphas = [alpha for alpha in selected_alphas if alpha.get('used') != 1]
+        selected_alphas = [alpha for alpha in selected_alphas if alpha.get('used') != 1]
 
         print('len(selected_alphas):', len(selected_alphas))
 
