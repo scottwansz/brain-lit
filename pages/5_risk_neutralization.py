@@ -53,8 +53,8 @@ if st.button("查询最佳Alphas", type="primary"):
             fitness_threshold=fitness_threshold
         )
 
-        # 排除best_alphas中used属性为1的记录
-        best_alphas = [alpha for alpha in best_alphas if alpha.get('used') != 1]
+        # 排除best_alphas中used属性为'1'的记录
+        best_alphas = [alpha for alpha in best_alphas if alpha.get('used') != '1']
         
         if best_alphas:
             st.session_state.best_alphas = best_alphas
