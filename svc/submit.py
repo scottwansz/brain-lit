@@ -26,15 +26,17 @@ class SubmitTaskManager:
         self.status = {
             "stop": False,
             "submitted_count": 0,
+            "max_submit_count": 4,
             "progress": 0,
             "status": "WAITE",
             "details": "Preparing...",
         }
 
-    def start(self, records:List[Dict[str, Any]]):
+    def start(self, records:List[Dict[str, Any]], max_submit_count: int = 4):
         self.status.update({
             "stop": False,
             "submitted_count": 0,
+            "max_submit_count": max_submit_count,
             "progress": 0,
             "status": "RUNNING",
             "details": "Starting...",
@@ -46,9 +48,26 @@ class SubmitTaskManager:
 def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
 
     submitted_count = status.get("submitted_count", 0)
+    max_submit_count = status.get("max_submit_count", 4)
     session = get_auto_login_session()
 
     for record in records:
+        # 检查是否需要停止提交
+        if status.get("stop", False):
+            status.update({
+                "status": "STOPPED",
+                "details": "用户已停止提交任务"
+            })
+            return None
+            
+        # 如果已达到最大提交数，则停止提交
+        if submitted_count >= max_submit_count:
+            status.update({
+                "status": "COMPLETED",
+                "details": f"已达到最大提交数量: {max_submit_count}"
+            })
+            return None
+            
         success, error = submit_alpha(session, record['alpha_id'], record['region'])
 
         submitted_count += 1
@@ -57,7 +76,6 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
         })
 
         if success:
-
             alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
             alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
             print(f'\nalpha_desc generated: \n{alpha_desc}\n')
@@ -65,8 +83,6 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
                                alpha_desc=alpha_desc)
 
-            if submitted_count >= 4:
-                return True
         else:
             # logger.error(f"Failed to submit alpha {record.get('alpha_id')}: {error}")
             status.update({

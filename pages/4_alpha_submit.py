@@ -60,6 +60,7 @@ if st.session_state.get('submittable_alpha_stats'):
     submittable_category_counts = st.session_state.get('submittable_category_counts', [])
     
     if submittable_category_counts:
+        st.markdown("---")
         st.subheader("各分类可提交Alpha数量")
         
         # 添加"全选"复选框
@@ -148,11 +149,18 @@ if st.session_state.get('submittable_alpha_stats'):
     else:
         st.info("暂无可提交的Alpha")
 
-col3, col4, col5 = st.columns([1, 1, 4])
+"""
+---
+"""
+col_max_submit_count, _ = st.columns([1, 3])
+with col_max_submit_count:
+    max_submit_count = st.number_input("提交数量", min_value=1, max_value=20, value=4, step=1)
+
+col4, col5, col6, col7 = st.columns([1, 1, 1, 3])
 
 task_manager = get_submit_task_manager()
 
-if col3.button("提交Alpha", type="primary"):
+if col4.button("提交Alpha", type="primary"):
     # 获取选中的数据
     if 'selected_rows' in st.session_state and 'df' in st.session_state:
         selected_df = st.session_state.df.iloc[st.session_state.selected_rows]
@@ -160,16 +168,21 @@ if col3.button("提交Alpha", type="primary"):
             # 转换为记录列表
             records = selected_df.to_dict('records')
 
-            # 提交选中的Alpha
-            task_manager.start(records=records)
+            # 提交选中的Alpha，使用指定的最大提交数量
+            task_manager.start(records=records, max_submit_count=max_submit_count)
 
-            st.success(f"开始提交 {len(records)} 个Alpha")
+            st.success(f"开始提交最多 {max_submit_count} 个Alpha")
         else:
             st.warning("请先选择要提交的Alpha")
     else:
         st.warning("请先查询并选择要提交的Alpha")
 
-if col4.button("检查状态"):
+if col5.button("停止提交"):
+    # 停止提交任务
+    task_manager.status["stop"] = True
+    st.success("已发送停止提交指令")
+
+if col6.button("提交状态"):
     # 显示提交状态信息
     st.write("当前提交状态信息:")
     st.json(task_manager.status)
