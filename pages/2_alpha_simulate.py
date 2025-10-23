@@ -38,7 +38,7 @@ if "current_simulate_page" not in st.session_state:
     st.session_state.current_simulate_page = 1
 
 # 添加Phase输入
-col_phase, col_n_task_max, col_placeholder = st.columns([1, 1, 2])
+col_phase, col_n_task_max, col_stats = st.columns([1, 1, 2])
 
 with col_phase:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
@@ -47,28 +47,31 @@ with col_n_task_max:
     # 最大任务数输入框
     n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
 
+with col_stats:
+    st.write("")
+    st.write("")
+    # 统计信息按钮
+    if st.button("回测统计", type="primary"):
+        # 获取并显示模拟状态统计信息
+        simulation_stats = query_alphas_simulation_stats(
+            selected_region,
+            selected_universe,
+            selected_delay,
+            selected_category,
+            None,  # dataset_ids设为None，查询所有数据集
+            phase,
+        )
+
+        # 显示统计信息
+        if simulation_stats:
+            # 保存统计信息到session_state，使其在其他操作后仍保持显示
+            st.session_state.simulation_stats_data = simulation_stats
+        else:
+            st.session_state.simulation_stats_data = None
+
 # 操作按钮
 st.markdown("---")
-col_stats, col_start_simulate, col_simulate_status, col_stop_simulate, _ = st.columns([1, 1, 1, 1, 4])
-
-# 统计信息按钮
-if col_stats.button("统计信息", type="primary"):
-    # 获取并显示模拟状态统计信息
-    simulation_stats = query_alphas_simulation_stats(
-        selected_region,
-        selected_universe,
-        selected_delay,
-        selected_category,
-        None,  # dataset_ids设为None，查询所有数据集
-        phase,
-    )
-
-    # 显示统计信息
-    if simulation_stats:
-        # 保存统计信息到session_state，使其在其他操作后仍保持显示
-        st.session_state.simulation_stats_data = simulation_stats
-    else:
-        st.session_state.simulation_stats_data = None
+col_start_simulate, col_simulate_status, col_stop_simulate, _ = st.columns([1, 1, 1, 4])
 
 # 开始回测按钮
 if col_start_simulate.button("开始回测"):
