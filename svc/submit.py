@@ -63,6 +63,7 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
         # 如果已达到最大提交数，则停止提交
         if submitted_count >= max_submit_count:
             status.update({
+                "stop": True,
                 "status": "COMPLETED",
                 "details": f"已达到最大提交数量: {max_submit_count}"
             })
@@ -90,11 +91,17 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             })
 
             if error in ['REGULAR_SUBMISSION_LIMIT']:
+                status.update({
+                    "status": "STOPPED",
+                    "details": "已达到提交限制，请稍后再试"
+                })
                 logger.warning("SUBMISSION limit reached, breaking...")
                 return True
 
     status.update({
+        "stop": True,
         "status": "COMPLETED",
+        "details": "提交完成"
     })
     return None
 
