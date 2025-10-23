@@ -52,6 +52,9 @@ if st.button("查询最佳Alphas", type="primary"):
             sharp_threshold=sharp_threshold,
             fitness_threshold=fitness_threshold
         )
+
+        # 排除best_alphas中used属性为1的记录
+        best_alphas = [alpha for alpha in best_alphas if alpha.get('used') != 1]
         
         if best_alphas:
             st.session_state.best_alphas = best_alphas
@@ -147,6 +150,7 @@ if st.button("生成Risk Neutralization Alphas"):
                     'neutralization': neutralization,
                     'phase': new_phase,
                     'simulated': 0,
+                    'used': 1
                 }
                 new_alphas.append(new_alpha)
                 st.session_state.new_alphas_to_save = new_alphas
