@@ -2,8 +2,8 @@ import time
 import unittest
 from typing import DefaultDict
 
+from svc.auth import AutoLoginSession
 from svc.logger import setup_logger
-from svc import AutoLoginSession
 from svc.simulate import get_unsimulated_records, check_progress, \
     submit_simulation_task, check_simulate_task
 

@@ -108,11 +108,11 @@ def update_submitted_alphas_desc(alphas):
             alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=alpha_expression, related_info=alpha_related_info))
             logger.info(f'\nalpha_desc generated: \n{alpha_desc}\n')
 
-            update_brain_alpha(session, alpha_id=alpha.get('id'), alpha_name=alpha.get('name'), alpha_desc=alpha_desc)
+            update_brain_alpha_desc(session, alpha_id=alpha.get('id'), alpha_name=alpha.get('name'), alpha_desc=alpha_desc)
     else:
         logger.error("alphas为空")
 
-def update_brain_alpha(s: AutoLoginSession, alpha_id, alpha_name, alpha_desc=None):
+def update_brain_alpha_desc(s: AutoLoginSession, alpha_id, alpha_name, alpha_desc=None):
 
     if not alpha_desc:
         idea = "Iterate all the combination of operations and fields in dataset to find signal quantization factors"
@@ -227,7 +227,7 @@ def update_single_alpha_desc_by_ai(alpha:dict[str, any], operators, fields, data
     alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=alpha, operators=operators, fields=fields, dataset=dataset))
     print('alpha_desc generated: ', alpha_desc)
 
-    update_brain_alpha(session, alpha_id=alpha.get('id'), alpha_name=alpha.get('name'), alpha_desc=alpha_desc)
+    update_brain_alpha_desc(session, alpha_id=alpha.get('id'), alpha_name=alpha.get('name'), alpha_desc=alpha_desc)
     logging.getLogger(__name__).info("Alpha updated successfully.")
 
 

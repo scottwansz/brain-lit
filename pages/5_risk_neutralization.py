@@ -91,6 +91,11 @@ if "best_alphas" in st.session_state and st.session_state.best_alphas:
 st.subheader("Neutralization选项")
 st.info("请先查询最佳Alphas后再进行以下操作")
 
+col_new_phase, col_selected_neutralization_opts = st.columns([1, 3])
+
+with col_new_phase:
+    new_phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=2, step=1)
+
 # 显示可选择的neutralization列表
 neutralization_array = [
     "NONE",
@@ -107,13 +112,13 @@ neutralization_array = [
     "STATISTICAL",
     "COUNTRY"
 ]
-selected_neutralization_opts = st.multiselect(
-    "选择Neutralization类型",
-    options=neutralization_array,
-    default=["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]
-)
 
-new_phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=2, step=1)
+with col_selected_neutralization_opts:
+    selected_neutralization_opts = st.multiselect(
+        "选择Neutralization类型",
+        options=neutralization_array,
+        default=["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]
+    )
 
 # 生成Risk Neutralization Alphas按钮
 if st.button("生成Risk Neutralization Alphas"):

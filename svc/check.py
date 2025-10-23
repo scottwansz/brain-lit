@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from alpha_desc.alpha_desc_updater import update_brain_alpha
+from alpha_desc.alpha_desc_updater import update_brain_alpha_desc
 from svc.alpha_query import query_checkable_alpha_details
 from svc.auth import get_auto_login_session, AutoLoginSession
 from svc.database import update_table
@@ -35,35 +35,117 @@ class CheckTaskManager:
             "stop": False,
         })
 
-        thread = threading.Thread(target=check_one_batch, args=(records, self.status,), daemon=True)
-        thread.start()
+        if not self.thread or not self.thread.is_alive():
+            self.thread = threading.Thread(target=check_one_batch, args=(records, self.status, self), daemon=True)
+            self.thread.start()
 
 
-# def update_brain_alpha(s: AutoLoginSession, alpha_name, alpha_id, alpha_desc=None):
-#     if not alpha_desc:
-#         idea = "Iterate all the combination of operations and fields in dataset to find signal quantization factors"
-#         rationale_of_data = "It is nonsense since it is randomly testing. Information on company's conference call, such as the type of call, the number of participants on the company side and analyst side, the number of talks/questions/sentences/paragraphs/words/chars in presentation part and Q&A part respsectively. Also it generates keywords occurrence and each position from a specific dictionary. Based on this conference call, a researcher can generate unique signals predicting sentiment on the company after the conference call event."
-#         rationale_of_operators = "ops rank the alpha"
-#
-#         alpha_desc = f"Idea: {idea}\nRationale for data used: {rationale_of_data}\nRationale for operators used: {rationale_of_operators}"
-#
-#     url = f"https://api.worldquantbrain.com/alphas/{alpha_id}"
-#     payload = {
-#         "color": None,
-#         "name": alpha_name,
-#         "tags": [],
-#         "category": None,
-#         "regular": {
-#             "description": alpha_desc
-#         }
-#     }
-#     response = s.patch(url, json=payload)
-#     if response.status_code != 200:
-#         logging.getLogger(__name__).error(f"Failed to update BRAIN alpha {alpha_id}: {response.status_code}")
-#         return False
-#     else:
-#         logging.getLogger(__name__).info(f"BRAIN Alpha {alpha_id} updated: {response.status_code} {alpha_name}")
-#         return True
+def check_one_batch(alpha_list, task, manager=None):
+    """
+    检查并可能提交一批alpha策略。
+
+    参数:
+    - alpha_list: 一个包含alpha策略信息的列表。
+    - s: 一个表示当前会话或状态的对象。
+    - task: 一个包含任务相关信息的字典。
+    - manager: CheckTaskManager实例，用于在线程结束后将self.thread设为None
+
+    返回:
+    - 是否中止: 如果任务完成(提交了4个alpha或者出现不能继续的错误)或被人为停止，则返回True，否则返回False。
+    """
+    # 初始化已提交计数
+    passed_count = task.get('passed_count', 0)
+    session = get_auto_login_session()
+
+    task.update({
+        "status": "RUNNING",
+        "progress": 0,
+        "passed_count": 0,
+        "details": "Preparing...",
+    })
+
+    # 遍历alpha列表
+    for i, record in enumerate(alpha_list):
+        # 检查任务是否被停止
+        if task.get('stop'):
+            # 更新任务状态为停止，并返回True
+            task.update({
+                "status": "STOPPED",
+                "details": "Stopped by user"
+            })
+            
+            # 任务完成后将manager.thread设为None
+            if manager:
+                manager.thread = None
+                
+            return True
+
+        if not update_brain_alpha_desc(session, record['alpha_id'], record['name']):
+            continue
+
+        # 检查alpha策略的有效性
+        success, fail_reasons = check_alpha(session, record['alpha_id'], task=task)
+        logger.info(f"Alpha {record['alpha_id']} check passed: {len(fail_reasons) == 0}, Fail reasons: {fail_reasons}")
+
+        fail_reason_names = [reason.get('name') for reason in fail_reasons]
+        if 'ALREADY_SUBMITTED' in fail_reason_names:
+            # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
+            update_table(
+                f"{record['region'].lower()}_alphas",
+                {'alpha_id': record['alpha_id']},
+                {'passed': 1, 'submitted': 1}
+            )
+            continue
+
+        if success:
+            # 检查是否达到常规提交限制 [{'name': 'D0_SUBMISSION', 'result': 'FAIL', 'limit': 30, 'value': 30}, {'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]
+            submission_limits = ['D0_SUBMISSION', 'REGULAR_SUBMISSION']
+            if any(reason.get('name') in submission_limits and reason.get('result') == 'FAIL' for reason in fail_reasons):
+            # if fail_reasons == [{'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]:
+                logger.warning("SUBMISSION limit reached, breaking...")
+                task.update({
+                    "status": "COMPLETED",
+                    "stop": True,
+                    "details": "SUBMISSION limit reached"
+                })
+                
+                # 任务完成后将manager.thread设为None
+                if manager:
+                    manager.thread = None
+                    
+                return True
+
+            # 准备要更新的数据
+            set_data = {
+                'passed': 1 if len(fail_reasons) == 0 else -1,
+                'fail_reasons': json.dumps(fail_reasons)
+            }
+
+            passed_count += 1 if len(fail_reasons) == 0 else 0
+
+            # 更新数据库
+            table_name = f'{record['region'].lower()}_alphas'
+            update_table(table_name, {'id': record['id']}, set_data)
+
+        # 更新任务进度
+        task.update({
+            "progress": round((i+1) / len(alpha_list) * 100),
+            "passed_count": passed_count,
+            "details": f"Processing {i+1} out of {len(alpha_list)} Alphas"
+        })
+
+    # 如果所有alphas都被处理，则返回False
+    task.update({
+        "status": "COMPLETED",
+        "stop": True,
+        "details": "All alphas checked"
+    })
+    
+    # 任务完成后将manager.thread设为None
+    if manager:
+        manager.thread = None
+        
+    return False
 
 
 def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
@@ -107,130 +189,3 @@ def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
         logger.error(f"Failed to check alpha {alpha_id} status_code: {response.status_code}")
         logger.error(f"Failed to check alpha {alpha_id} response content: {response.content.decode('utf-8') if response.content else 'Empty response'}")
         return False, [{'name': f'{response.status_code}_ERROR'}]
-
-
-def check_by_query(task:dict):
-
-    task.update({
-        "batch": 0,
-        "status": "RUNNING",
-        "progress": 0,
-        "details": "Preparing...",
-    })
-
-    while not task.get('stop'):
-
-        task.update({
-            "batch": task.get('batch', 0) + 1,
-            "progress": 0,
-            "details": "Preparing...",
-        })
-
-        alpha_list = query_checkable_alpha_details(**task.get('query'))
-
-        if len(alpha_list) > 0:
-            check_one_batch(alpha_list, task)
-        else:
-            task.update({
-                "status": "COMPLETED",
-                "stop": True,
-                "details": "No more alphas to check"
-            })
-            logger.info("No more alphas to check and submit")
-
-    task.update({
-        "status": "COMPLETED",
-    })
-
-
-def check_one_batch(alpha_list, task):
-    """
-    检查并可能提交一批alpha策略。
-
-    参数:
-    - alpha_list: 一个包含alpha策略信息的列表。
-    - s: 一个表示当前会话或状态的对象。
-    - task: 一个包含任务相关信息的字典。
-
-    返回:
-    - 是否中止: 如果任务完成(提交了4个alpha或者出现不能继续的错误)或被人为停止，则返回True，否则返回False。
-    """
-    # 初始化已提交计数
-    passed_count = task.get('passed_count', 0)
-    session = get_auto_login_session()
-
-    task.update({
-        "status": "RUNNING",
-        "progress": 0,
-        "passed_count": 0,
-        "details": "Preparing...",
-    })
-
-    # 遍历alpha列表
-    for i, record in enumerate(alpha_list):
-        # 检查任务是否被停止
-        if task.get('stop'):
-            # 更新任务状态为停止，并返回True
-            task.update({
-                "status": "STOPPED",
-                "details": "Stopped by user"
-            })
-            return True
-
-        if not update_brain_alpha(session, record['alpha_id'], record['name']):
-            continue
-
-        # 检查alpha策略的有效性
-        success, fail_reasons = check_alpha(session, record['alpha_id'], task=task)
-        logger.info(f"Alpha {record['alpha_id']} check passed: {len(fail_reasons) == 0}, Fail reasons: {fail_reasons}")
-
-        fail_reason_names = [reason.get('name') for reason in fail_reasons]
-        if 'ALREADY_SUBMITTED' in fail_reason_names:
-            # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
-            update_table(
-                f"{record['region'].lower()}_alphas",
-                {'alpha_id': record['alpha_id']},
-                {'passed': 1, 'submitted': 1}
-            )
-            continue
-
-        if success:
-            # 检查是否达到常规提交限制 [{'name': 'D0_SUBMISSION', 'result': 'FAIL', 'limit': 30, 'value': 30}, {'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]
-            submission_limits = ['D0_SUBMISSION', 'REGULAR_SUBMISSION']
-            if any(reason.get('name') in submission_limits and reason.get('result') == 'FAIL' for reason in fail_reasons):
-            # if fail_reasons == [{'name': 'REGULAR_SUBMISSION', 'result': 'FAIL', 'limit': 4, 'value': 4}]:
-                logger.warning("SUBMISSION limit reached, breaking...")
-                task.update({
-                    "status": "COMPLETED",
-                    "stop": True,
-                    "details": "SUBMISSION limit reached"
-                })
-                return True
-
-            # 准备要更新的数据
-            set_data = {
-                'passed': 1 if len(fail_reasons) == 0 else -1,
-                'fail_reasons': json.dumps(fail_reasons)
-            }
-
-            passed_count += 1 if len(fail_reasons) == 0 else 0
-
-            # 更新数据库
-            table_name = f'{record['region'].lower()}_alphas'
-            update_table(table_name, {'id': record['id']}, set_data)
-
-        # 更新任务进度
-        task.update({
-            "progress": round((i+1) / len(alpha_list) * 100),
-            "passed_count": passed_count,
-            "details": f"Processing {i+1} out of {len(alpha_list)} Alphas"
-        })
-
-    # 如果所有alphas都被处理，则返回False
-    task.update({
-        "status": "COMPLETED",
-        "stop": True,
-        "details": "All alphas checked"
-    })
-    return False
-

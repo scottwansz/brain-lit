@@ -156,11 +156,11 @@ col_max_submit_count, _ = st.columns([1, 3])
 with col_max_submit_count:
     max_submit_count = st.number_input("提交数量", min_value=1, max_value=20, value=4, step=1)
 
-col4, col5, col6, col7 = st.columns([1, 1, 1, 3])
+col4_submit, col6_submit_status, col5_stop_submit, _ = st.columns([1, 1, 1, 3])
 
 task_manager = get_submit_task_manager()
 
-if col4.button("提交Alpha", type="primary"):
+if col4_submit.button("提交Alpha", type="primary"):
     # 获取选中的数据
     if 'selected_rows' in st.session_state and 'df' in st.session_state:
         selected_df = st.session_state.df.iloc[st.session_state.selected_rows]
@@ -177,12 +177,12 @@ if col4.button("提交Alpha", type="primary"):
     else:
         st.warning("请先查询并选择要提交的Alpha")
 
-if col5.button("停止提交"):
-    # 停止提交任务
-    task_manager.status["stop"] = True
-    st.success("已发送停止提交指令")
-
-if col6.button("提交状态"):
+if col6_submit_status.button("提交状态"):
     # 显示提交状态信息
     st.write("当前提交状态信息:")
     st.json(task_manager.status)
+
+if col5_stop_submit.button("停止提交"):
+    # 停止提交任务
+    task_manager.status["stop"] = True
+    st.success("已发送停止提交指令")

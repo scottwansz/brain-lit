@@ -6,7 +6,7 @@ import streamlit as st
 import time
 import json
 
-from alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha
+from alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha_desc
 from alpha_desc.ask_ai import ask_dashscope, ai_prompt
 from svc.auth import get_auto_login_session, AutoLoginSession
 from svc.database import update_table
@@ -42,10 +42,11 @@ class SubmitTaskManager:
             "details": "Starting...",
         })
 
-        thread = threading.Thread(target=submit_task, args=(records, self.status,), daemon=True)
-        thread.start()
+        if not self.thread or not self.thread.is_alive():
+            self.thread = threading.Thread(target=submit_task, args=(records, self.status, self), daemon=True)
+            self.thread.start()
 
-def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
+def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any], manager=None):
 
     submitted_count = status.get("submitted_count", 0)
     max_submit_count = status.get("max_submit_count", 4)
@@ -58,6 +59,11 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
                 "status": "STOPPED",
                 "details": "用户已停止提交任务"
             })
+
+            # 任务完成后将manager.thread设为None
+            if manager:
+                manager.thread = None
+
             return None
             
         # 如果已达到最大提交数，则停止提交
@@ -67,6 +73,11 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
                 "status": "COMPLETED",
                 "details": f"已达到最大提交数量: {max_submit_count}"
             })
+
+            # 任务完成后将manager.thread设为None
+            if manager:
+                manager.thread = None
+
             return None
             
         success, error = submit_alpha(session, record['alpha_id'], record['region'])
@@ -81,8 +92,8 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
             alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
             print(f'\nalpha_desc generated: \n{alpha_desc}\n')
 
-            update_brain_alpha(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
-                               alpha_desc=alpha_desc)
+            update_brain_alpha_desc(session, alpha_id=record.get('alpha_id'), alpha_name=record.get('name'),
+                                    alpha_desc=alpha_desc)
 
         else:
             # logger.error(f"Failed to submit alpha {record.get('alpha_id')}: {error}")
@@ -95,6 +106,11 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
                     "status": "STOPPED",
                     "details": "已达到提交限制，请稍后再试"
                 })
+
+                # 任务完成后将manager.thread设为None
+                if manager:
+                    manager.thread = None
+
                 logger.warning("SUBMISSION limit reached, breaking...")
                 return True
 
@@ -103,6 +119,11 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any]):
         "status": "COMPLETED",
         "details": "提交完成"
     })
+    
+    # 任务完成后将manager.thread设为None
+    if manager:
+        manager.thread = None
+        
     return None
 
 
