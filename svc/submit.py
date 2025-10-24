@@ -205,7 +205,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
             logger.info(f'Submitting alpha {alpha_id}... time used: {round(time.time() - time_start)}.')
             response = s.get(url)
 
-    if response.status_code == 200 or response.status_code == 404:
+    if response.status_code == 200:
         table_name = f"{region.lower()}_alphas"
         update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
         logger.info(f"Alpha {alpha_id} submitted successfully with status code {response.status_code}")
