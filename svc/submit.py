@@ -82,12 +82,12 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any], manager=N
             
         success, error = submit_alpha(session, record['alpha_id'], record['region'], status)
 
-        submitted_count += 1
-        status.update({
-            "submitted_count": submitted_count,
-        })
-
         if success:
+            submitted_count += 1
+            status.update({
+                "submitted_count": submitted_count,
+            })
+
             alpha_related_info = get_alpha_desc_related_info(session, record['alpha'])
             alpha_desc = ask_dashscope(content=ai_prompt.format(alpha=record['alpha'], related_info=alpha_related_info))
             print(f'\nalpha_desc generated: \n{alpha_desc}\n')
