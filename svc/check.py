@@ -33,6 +33,8 @@ class CheckTaskManager:
     def start(self, records: List[Dict[str, Any]]):
         self.status.update({
             "stop": False,
+            "passed_count": 0,
+            "progress": 0,
         })
 
         if not self.thread or not self.thread.is_alive():
