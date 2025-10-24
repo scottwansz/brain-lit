@@ -167,7 +167,10 @@ def get_submitted_alphas_brain(s: AutoLoginSession):
     return result
 
 
-def submit_alpha(s: AutoLoginSession, alpha_id, region):
+def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
+
+    if task_info is None:
+        task_info = {}
 
     error_reached_quota = {"name": "REGULAR_SUBMISSION", "result": "FAIL", "limit": 4, "value": 4}  # Alpha submissions 4 reached quota of 4.
     error_already_submitted = {"name": "ALREADY_SUBMITTED", "result": "FAIL"}
@@ -194,6 +197,10 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region):
 
         while "retry-after" in response.headers:
             time.sleep(60)  # float(response.headers["Retry-After"])
+            task_info.update({
+                "alphas_id": alpha_id,
+                "time_used": round(time.time() - time_start)
+            })
             logger.info(f'Submitting alpha {alpha_id}... time used: {round(time.time() - time_start)}.')
             response = s.get(url)
 

@@ -42,7 +42,7 @@ class CheckTaskManager:
             self.thread.start()
 
 
-def check_one_batch(alpha_list, task, manager=None):
+def check_one_batch(alpha_list, task: dict, manager=None):
     """
     检查并可能提交一批alpha策略。
 
@@ -171,6 +171,10 @@ def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
         if task.get('stop'):
             return False, [{'name': 'STOPPED_BY_USER'}]
 
+        task.update({
+            "alpha_id": alpha_id,
+            "time_used": round(time.time() - time_start),
+        })
         logger.info(f"Alpha {alpha_id} is checking. Waiting...  {round(time.time() - time_start)}")
         time.sleep(60) # float(response.headers["Retry-After"])
         response = s.get(url)
