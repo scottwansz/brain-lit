@@ -51,7 +51,7 @@ WITH ranked_alphas AS (
 )
 DELETE FROM :'USA_alphas'
 WHERE (id) NOT IN (SELECT id FROM ranked_alphas WHERE rn = 1)
-AND simulated = 1 AND phase = 1 AND delay = 1;
+AND phase = 1 AND simulated = 1 AND delay = 1;
 
 select * from CHN_alphas
 where JSON_CONTAINS(fail_reasons,'[{"name": "D0_SUBMISSION", "limit": 30, "value": 30, "result": "FAIL"}]') ;
