@@ -174,6 +174,7 @@ def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
         task.update({
             "alpha_id": alpha_id,
             "time_used": round(time.time() - time_start),
+            "details": f"Alpha {alpha_id} is checking. Waiting..."
         })
         logger.info(f"Alpha {alpha_id} is checking. Waiting...  {round(time.time() - time_start)}")
         time.sleep(60) # float(response.headers["Retry-After"])

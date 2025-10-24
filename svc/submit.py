@@ -199,7 +199,8 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
             time.sleep(60)  # float(response.headers["Retry-After"])
             task_info.update({
                 "alphas_id": alpha_id,
-                "time_used": round(time.time() - time_start)
+                "time_used": round(time.time() - time_start),
+                "details": "Checking submit status done, Waiting..."
             })
             logger.info(f'Submitting alpha {alpha_id}... time used: {round(time.time() - time_start)}.')
             response = s.get(url)
