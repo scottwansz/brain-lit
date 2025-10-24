@@ -183,7 +183,7 @@ if st.button("保存到数据库"):
             # 根据地区确定表名
             table_name = f"{selected_region.lower()}_alphas"
             # 调用批量插入接口保存数据
-            logger.info(f"批量插入数据到表 {table_name}: %s", new_alphas_to_save)
+            # logger.info(f"批量插入数据到表 {table_name}: %s", new_alphas_to_save)
             affected_rows = batch_insert_records(table_name, new_alphas_to_save)
             if affected_rows > 0:
                 st.session_state.save_success = True
