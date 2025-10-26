@@ -103,11 +103,10 @@ def process_all_fields(fields: Dict[str, Dict]) -> Dict[str, str]:
     return processed
 
 
-
-
-def generate_simple_expressions(processed_fields: Dict[str, str], template_name: str = None, max_expressions: int = 20) -> Dict[str, List[str]]:
+def generate_simple_expressions(fields: Dict[str, Dict], template_name: str = None, max_expressions: int = 20) -> Dict[str, List[str]]:
     """给定字段列表生成这些字段的简单表达式"""
     # 预处理字段
+    processed_fields = process_all_fields(fields)
     all_templates = get_alpha_templates()
     
     if template_name:
@@ -370,13 +369,14 @@ def _generate_residual_expressions(template: Dict, processed_fields: Dict[str, s
 
     return expressions
 
-def generate_all_expressions(processed_fields: Dict[str, str], template_name: str = None, max_expressions: int = 20) -> Dict[str, Dict[str, List[str]]]:
+def generate_all_expressions(fields: Dict[str, Dict], template_name: str = None, max_expressions: int = 20) -> Dict[str, Dict[str, List[str]]]:
     """生成多样化的表达式集合，按字段和模板组织"""
-        
+    # 预处理字段
+
     all_expressions = {}
 
     # 生成简单表达式
-    simple_exprs = generate_simple_expressions(processed_fields, template_name, max_expressions)
+    simple_exprs = generate_simple_expressions(fields, template_name, max_expressions)
     # 合并到all_expressions中，去重
     for field, exprs in simple_exprs.items():
         if field not in all_expressions:
@@ -468,12 +468,9 @@ def main():
         'snt22_2dts_sop_7': {'type': 'MATRIX', 'coverage': 0.7123}
     }
 
-    # 预处理字段
-    processed_fields = process_all_fields(fields)
-
     # 测试简单表达式生成
     print(f"\n=== 简单表达式生成 ===")
-    simple_exprs = generate_simple_expressions(processed_fields, "ts_basic", 10)
+    simple_exprs = generate_simple_expressions(fields, "ts_basic", 10)
     for field, field_exprs in simple_exprs.items():
         print(f"  {field}")
         for i, expr in enumerate(field_exprs[:10], 1):
@@ -491,15 +488,15 @@ def main():
 
     # 测试volatility_adjusted表达式生成
     print(f"\n=== Volatility Adjusted 表达式生成 ===")
-    vol_exprs = generate_complex_expressions(simple_exprs, "volatility_adjusted", 7)
+    vol_exprs = generate_complex_expressions(simple_exprs, "volatility_adjusted", 3)
     for field, field_exprs in vol_exprs.items():
         print(f"  {field}")
-        for i, expr in enumerate(field_exprs, 1):
+        for i, expr in enumerate(field_exprs[:3], 1):
             print(f"    {i}. {expr}")
         break  # 只显示一个字段的表达式
 
     print(f"\n=== 所有表达式生成 ===")
-    all_exprs = generate_all_expressions(processed_fields, None, 20)
+    all_exprs = generate_all_expressions(fields, None, 20)
 
     for field, templates in all_exprs.items():
         print(f"\n字段: {field}")
