@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from svc.dataset import get_all_datasets, get_used_dataset_ids
 from svc.alpha_query import query_alphas_by_conditions
-from svc.alpha_builder import get_alpha_templates, AlphaGenerator
+from svc.alpha_builder import get_alpha_templates, generate_simple_expressions
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -323,8 +323,7 @@ if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数
             # "truncation": truncation
         }
         dataset_fields = get_all_data_fields(** query_params)
-        generator = AlphaGenerator(dataset_fields)
-        alpha_expression = generator.generate_by_template(selected_template)
+        alpha_expression = generate_simple_expressions(dataset_fields, template_name=selected_template)
         st.json(query_params)
         st.json(alpha_expression)
 
