@@ -148,11 +148,11 @@ if st.button("生成Risk Neutralization Alphas"):
                     'universe': alpha.get('universe'),
                     'delay': alpha.get('delay'),
                     'alpha': alpha.get('alpha'),
-                    'decay': alpha.get('decay'),
                     'name': alpha.get('name'),
                     'category': alpha.get('category'),
                     'dataset': alpha.get('dataset'),
                     'neutralization': neutralization,
+                    'decay': alpha.get('decay'),
                     'phase': new_phase,
                     'simulated': 0,
                     'used': 1

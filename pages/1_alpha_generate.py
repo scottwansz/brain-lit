@@ -4,7 +4,8 @@ import sys
 import streamlit as st
 
 from sidebar import render_sidebar
-from svc.datafields import get_all_data_fields
+from svc.database import insert_record, batch_insert_records
+from svc.datafields import get_single_set_fields, get_multi_set_fields
 from svc.logger import setup_logger
 
 # 添加src目录到路径中
@@ -77,7 +78,7 @@ with unused_col:
     # 获取当前的checkbox状态
     current_show_only_unused = st.checkbox(
         "未使用过",
-        value=st.session_state.get("show_only_unused", False),
+        value=st.session_state.get("show_only_unused", True),
         key="show_only_unused_checkbox"
     )
     # 更新session state
@@ -148,7 +149,6 @@ if button_col.button("查询数据集"):
 # 只有当查询按钮被点击时才继续执行数据集查询和显示逻辑
 if st.session_state.get("query_datasets_clicked", False):
     all_datasets = st.session_state.cached_datasets
-    total_count = len(all_datasets)
     used_dataset_ids = st.session_state.cached_used_dataset_ids
 
     # 显示数据集选择
@@ -178,61 +178,13 @@ if st.session_state.get("query_datasets_clicked", False):
                    any(theme.get("multiplier") is not None for theme in dataset["themes"])
             ]
         
-        # 计算过滤后的数据集数量
-        filtered_count = len(filtered_datasets)
+        # 准备用于显示的 DataFrame
+        import pandas as pd
         
-        # 计算总页数
-        page_size = 20  # 每页显示的数据条数
-        if show_only_unused:
-            total_pages = (filtered_count + page_size - 1) // page_size if filtered_count > 0 else 1
-            display_count = filtered_count
-        else:
-            total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
-            display_count = total_count
-        
-        # 确保当前页码在有效范围内
-        if st.session_state.current_page > total_pages:
-            st.session_state.current_page = total_pages
-        if st.session_state.current_page < 1:
-            st.session_state.current_page = 1
-        
-        # 在同一行显示数据集总数、筛选选项和分页控件
-        count_col, prev_col, info_col, next_col = st.columns([4, 1, 1, 1])
-        with count_col:
-            if show_only_unused:
-                st.write(f"共找到 {filtered_count} 个未使用数据集（总计 {total_count} 个）")
-            else:
-                st.write(f"共找到 {total_count} 个数据集")
-        with prev_col:
-            if st.button("上一页", disabled=(st.session_state.current_page <= 1)):
-                st.session_state.current_page -= 1
-                st.rerun()
-        with info_col:
-            st.write(f"第 {st.session_state.current_page} 页，共 {total_pages} 页")
-        with next_col:
-            if st.button("下一页", disabled=(st.session_state.current_page >= total_pages)):
-                st.session_state.current_page += 1
-                st.rerun()
-        
-        # 显示表格形式的数据集
-        # 创建表格标题行
-        header_cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 1])
-        headers = ["选择", "ID", "分类", "主题乘数", "覆盖率", "价值评分", "用户数", "Alpha数", "字段数", "金字塔乘数"]
-        
-        for col, header in zip(header_cols, headers):
-            col.write(f"**{header}**")
-        
-        # 计算当前页应该显示的数据
-        start_idx = (st.session_state.current_page - 1) * page_size
-        end_idx = min(start_idx + page_size, len(filtered_datasets))
-        page_datasets = filtered_datasets[start_idx:end_idx]
-        # logger.info("page_datasets: %s", page_datasets)
-        
-        # 显示数据行
-        for dataset_dict in page_datasets:
+        # 处理数据以便在表格中显示
+        display_data = []
+        for dataset_dict in filtered_datasets:
             dataset_id = dataset_dict.get("id", "")
-                
-            # 检查数据集是否已被使用
             used = dataset_id in used_dataset_ids
             
             # 处理themes字段，显示multiplier值而不是name值
@@ -240,43 +192,48 @@ if st.session_state.get("query_datasets_clicked", False):
             if isinstance(dataset_dict, dict) and "themes" in dataset_dict:
                 themes_multiplier = ", ".join([str(theme.get("multiplier", "")) for theme in dataset_dict.get("themes", [])]) if dataset_dict.get("themes") else ""
             
-            # 创建数据行
-            cols = st.columns([1, 2, 2, 1, 1, 1, 1, 1, 1, 1])
+            display_data.append({
+                "ID": f"{dataset_id} 🔵" if used else dataset_id,
+                "分类": dataset_dict.get("category", {}).get("name", ""),
+                "主题乘数": themes_multiplier,
+                "覆盖率": f"{dataset_dict.get('coverage', 0):.2%}",
+                "价值评分": dataset_dict.get("valueScore", 0),
+                "用户数": dataset_dict.get("userCount", 0),
+                "Alpha数": dataset_dict.get("alphaCount", 0),
+                "字段数": dataset_dict.get("fieldCount", 0),
+                "金字塔乘数": dataset_dict.get("pyramidMultiplier", "")
+            })
+        
+        # 创建 DataFrame
+        df = pd.DataFrame(display_data)
+        
+        # 显示数据集总数
+        st.write(f"共找到 {len(filtered_datasets)} 个数据集")
+        
+        # 使用 st.dataframe 显示数据集，支持行选择
+        dataset_selection = st.dataframe(
+            df,
+            key="dataset_selection",
+            on_select="rerun",
+            selection_mode="multi-row"
+        )
+        
+        # 处理选中的数据集
+        selected_rows = dataset_selection.selection.rows if dataset_selection.selection else []
+        st.session_state.selected_datasets = [filtered_datasets[i] for i in selected_rows]
+        for row_index in selected_rows:
+            dataset_dict = filtered_datasets[row_index]
+            dataset_id = dataset_dict.get("id", "")
+            st.session_state[f"selected_dataset_{dataset_id}"] = dataset_dict
             
-            # 复选框
-            with cols[0]:
-                is_selected = st.checkbox(
-                    f"选择数据集 {dataset_id}", 
-                    key=f"select_{dataset_id}",
-                    value=st.session_state.get(f"selected_dataset_{dataset_id}", False),
-                    label_visibility="collapsed"
-                )
-                # 更新session state
-                if is_selected:
-                    st.session_state[f"selected_dataset_{dataset_id}"] = dataset_dict
-                elif f"selected_dataset_{dataset_id}" in st.session_state:
-                    del st.session_state[f"selected_dataset_{dataset_id}"]
-            
-            # 数据集ID列 - 对已使用的数据集使用特殊标记
-            with cols[1]:
-                if used:
-                    # 使用特殊颜色和标记来标识已使用的数据集
-                    st.markdown(f"<span style='color: #1f77b4; font-weight: bold;'>{dataset_id} 🔵</span>", unsafe_allow_html=True)
-                else:
-                    st.write(dataset_id)
-            
-            cols[2].write(dataset_dict.get("category", {}).get("name", ""))
-            cols[3].write(themes_multiplier)
-            cols[4].write(f"{dataset_dict.get("coverage", 0):.2%}")
-            cols[5].write(dataset_dict.get("valueScore", 0))
-            cols[6].write(dataset_dict.get("userCount", 0))
-            cols[7].write(dataset_dict.get("alphaCount", 0))
-            cols[8].write(dataset_dict.get("fieldCount", 0))
-            cols[9].write(dataset_dict.get("pyramidMultiplier", ""))
+        # 移除未选中的数据集
+        selected_dataset_keys = [f"selected_dataset_{filtered_datasets[i].get('id', '')}" for i in selected_rows]
+        for key in list(st.session_state.keys()):
+            if key.startswith("selected_dataset_") and key not in selected_dataset_keys:
+                del st.session_state[key]
                     
     else:
         st.info("当前筛选条件下没有找到数据集")
-        st.session_state.current_page = 1
 
 # 参数设置
 st.subheader("参数设置")
@@ -285,16 +242,34 @@ col1, col2, col3 = st.columns(3)
 with col1:
     neutralization = st.selectbox(
         "中性化选项",
-        ["SIZE", "SECTOR", "VOLATILITY", "LIQUIDITY", "MOMENTUM"]
+        [
+            "NONE",
+            "REVERSION_AND_MOMENTUM",
+            "STATISTICAL",
+            "CROWDING",
+            "FAST",
+            "SLOW",
+            "MARKET",
+            "SECTOR",
+            "INDUSTRY",
+            "SUBINDUSTRY",
+            "SLOW_AND_FAST",
+            "STATISTICAL",
+            "COUNTRY"
+        ],
+        index=9
     )
 
 with col2:
-    decay = st.number_input("衰减天数", min_value=1, max_value=30, value=5)
+    decay = st.number_input("衰减天数", min_value=1, max_value=30, value=6)
 
 with col3:
-    truncation = st.slider("截断百分比", 0.0, 10.0, 5.0, 0.1)
+    truncation = st.slider("截断百分比", 0.01, 1.0, 0.08, 0.01)
 
-col_template = st.columns([1])[0]
+col_phase, col_template = st.columns([1, 2])
+
+with col_phase:
+    phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=1, step=1)
 
 with col_template:
     # 模板选择
@@ -308,24 +283,60 @@ st.markdown("---")
 col6, col7, col8 = st.columns([1, 1, 3])
 
 if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数据集
-    selected_dataset_ids = get_selected_dataset_ids()
+    if st.session_state.selected_datasets and selected_template:
 
-    if selected_dataset_ids and selected_template:
-        st.success(f"使用{selected_template}模板生成Alpha表达式")
-        query_params = {
-            "region": selected_region,
-            "universe": selected_universe,
-            "delay": selected_delay,
-            # "category": selected_category,
-            "dataset_id": selected_dataset_ids[0],
-            # "neutralization": neutralization,
-            # "decay": decay,
-            # "truncation": truncation
-        }
-        dataset_fields = get_all_data_fields(** query_params)
-        alpha_expression = generate_simple_expressions(dataset_fields, template_name=selected_template)
-        st.json(query_params)
-        st.json(alpha_expression)
+        all_expressions = {}
+        for dataset in st.session_state.selected_datasets:
+
+            st.success(f"使用{selected_template}模板生成Alpha表达式")
+            query_params = {
+                "region": selected_region,
+                "universe": selected_universe,
+                "delay": selected_delay,
+                "dataset_id": dataset.get("id"),
+            }
+            dataset_fields = get_single_set_fields(** query_params)
+            dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
+            all_expressions.update(dataset_expressions)
+
+            # 在dataset_used表中添加记录
+            dataset_used_record = {
+                "region": selected_region,
+                "universe": selected_universe,
+                "delay": selected_delay,
+                "dataset": dataset.get("id"),
+                "template": selected_template,
+            }
+            insert_record("dataset_used", data=dataset_used_record)
+
+            # 将dataset_expressions整理成alpha表批量新增记录
+            alpha_records = []
+            for name in dataset_expressions:
+                expressions = dataset_expressions[name]
+                for expression in expressions:
+                    alpha_record = {
+                        "region": selected_region,
+                        "universe": selected_universe,
+                        "delay": selected_delay,
+                        "category": dataset.get("category", {}).get("id"),
+                        "dataset": dataset.get("id"),
+                        "alpha": expression,
+                        "name": name,
+                        "neutralization": neutralization,
+                        "decay": decay,
+                        'phase': phase,
+                        'simulated': 0,
+                        'used': 0,
+                        "template": selected_template,
+                    }
+                    alpha_records.append(alpha_record)
+
+            alpha_table_name = f"{selected_region.lower()}_alphas"
+            affected_rows = batch_insert_records(alpha_table_name, alpha_records)
+            st.success(f"成功保存 {affected_rows} 条记录到数据库表{alpha_table_name}")
+
+            # st.json(alpha_records)
+        # st.json(all_expressions)
 
     else:
         st.warning("请选择数据集与表达式模板")
@@ -333,7 +344,7 @@ if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数
 with col7:
     if st.button("查询Alpha"):
         # 获取当前选中的数据集
-        selected_dataset_ids = get_selected_dataset_ids()
+        selected_dataset_ids = [dataset.get("id", "") for dataset in st.session_state.selected_datasets]
         
         # 查询Alpha记录
         query_results = query_alphas_by_conditions(
