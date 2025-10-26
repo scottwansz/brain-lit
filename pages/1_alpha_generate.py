@@ -344,8 +344,17 @@ if col_save_alphas.button("保存Alpha"):
 
     if "new_alphas_to_save" in st.session_state:
         alpha_table_name = f"{selected_region.lower()}_alphas"
-        affected_rows = batch_insert_records(alpha_table_name, st.session_state.new_alphas_to_save)
-        st.success(f"成功保存 {affected_rows} 条记录到数据库表{alpha_table_name}")
+
+        # 将new_alphas按每200个元素分批处理
+        batch_size = 500
+        new_alphas = st.session_state.new_alphas_to_save
+        progress_bar = st.progress(0, text="数据保存进度：0.00%")
+        for i in range(0, len(new_alphas), batch_size):
+            batch = new_alphas[i:i + batch_size]
+            affected_rows = batch_insert_records(alpha_table_name, batch)
+            progress_text = f"数据保存进度: {((i + batch_size) / len(new_alphas)):.2%}"
+            progress_bar.progress(min((i + batch_size) / len(new_alphas), 1.0), text=progress_text)
+        # progress_bar.progress(1.0, text="数据保存进度: 100.00%")
     else:
         st.warning("请先生成Alpha")
 
@@ -370,6 +379,8 @@ if col_query_alphas.button("查询Alpha"):
                 st.rerun()
             else:
                 st.info("未找到相关的Alpha记录")
+                st.session_state.query_results = None
+                st.session_state.show_query_results = False
         else:
             selected_datasets = []
             st.info("请选择数据集")
