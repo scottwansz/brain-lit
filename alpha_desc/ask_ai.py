@@ -28,7 +28,21 @@ this alpha related information, including operators, fields, dataset: {related_i
 Generate description of the alpha following the template as below, 3 sentences, 100 character minimum totally:
 Idea: [idea]
 Rationale for data used: [reason_use_this_data]
-Rationale for operators used: [reason_use_these_operators]"""
+Rationale for operators used: [reason_use_these_operators]
+
+Tips:
+Ensure descriptions adhere to the provided format, covering the Idea, Rationale for data used, and Rationale for operators used.
+Do not include my Alpha expression in the description.
+Descriptions should be unique and not duplicated across Alphas. Since Alphas are unique (self-correlation less than 0.5), their descriptions should also reflect this uniqueness.
+Write in clear, valid English. Descriptions should be sensible, concise, and easy to understand.
+
+Here is an example description:
+Idea: In normal market conditions, if a stock is shorted more, its likelihood of bouncing back may also increase (reversion). However, in extreme cases where the consensus in the market is high reflecting in extremely high/low level of short interest, it may potentially be better to follow that trend
+Rationale for data used: shrt3_bar field is a vector data field representing the demand to borrow stock, with higher values indicating higher demand
+Rationale for operators used:
+vec_avg(): Calculates the average value of shrt3_bar for a given day
+Conditional operator: Separates normal cases from extreme ones
+ts_backfill: Handles NaN values in the data field, detected by checking the coverage with a visualization tool"""
 
 def ask_local_ai():
     global headers

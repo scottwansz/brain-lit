@@ -38,6 +38,8 @@ class SubmitTaskManager:
             "submitted_count": 0,
             "max_submit_count": max_submit_count,
             "progress": 0,
+            "alphas_id": None,
+            "time_started": None,
             "status": "RUNNING",
             "details": "Starting...",
         })
@@ -172,6 +174,12 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
     if task_info is None:
         task_info = {}
 
+    task_info.update({
+        "alphas_id": alpha_id,
+        "started_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "details": "alpha submitted, Waiting..."
+    })
+
     error_reached_quota = {"name": "REGULAR_SUBMISSION", "result": "FAIL", "limit": 4, "value": 4}  # Alpha submissions 4 reached quota of 4.
     error_already_submitted = {"name": "ALREADY_SUBMITTED", "result": "FAIL"}
     error_throttled = {"detail": "THROTTLED"}
@@ -196,16 +204,17 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
         response = s.get(url)
 
         while "retry-after" in response.headers:
-            time.sleep(60)  # float(response.headers["Retry-After"])
             task_info.update({
                 "alphas_id": alpha_id,
                 "time_used": round(time.time() - time_start),
-                "details": "Checking submit status done, Waiting..."
+                "details": "Submitted with status 201, Waiting..."
             })
             logger.info(f'Submitting alpha {alpha_id}... time used: {round(time.time() - time_start)}.')
+
+            time.sleep(60)  # float(response.headers["Retry-After"])
             response = s.get(url)
 
-    if response.status_code == 200:
+    if response.status_code == 200 or response.status_code == 404:
         table_name = f"{region.lower()}_alphas"
         update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
         logger.info(f"Alpha {alpha_id} submitted successfully with status code {response.status_code}")
