@@ -93,7 +93,7 @@ def query_alphas_by_conditions(region: str, universe: str, delay: int, category:
             query += f" AND dataset IN ({placeholders})"
             params.extend(dataset_ids)
         
-        query += " ORDER BY sharp*fitness DESC LIMIT 100"
+        query += " ORDER BY sharp*fitness DESC LIMIT 500"
         
         cursor.execute(query, params)
         results = cursor.fetchall()

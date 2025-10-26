@@ -280,26 +280,26 @@ with col_template:
 
 # 操作按钮
 st.markdown("---")
-col6, col7, col8 = st.columns([1, 1, 3])
+col_gen_alphas, col_save_alphas, col_query_alphas, col_clear = st.columns([1, 1, 1, 3])
 
-if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数据集
-    if st.session_state.selected_datasets and selected_template:
+if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前选中的数据集
+    if "selected_datasets" in st.session_state and selected_template:
 
         all_expressions = {}
+        alpha_records = []
         for dataset in st.session_state.selected_datasets:
 
-            st.success(f"使用{selected_template}模板生成Alpha表达式")
             query_params = {
                 "region": selected_region,
                 "universe": selected_universe,
                 "delay": selected_delay,
                 "dataset_id": dataset.get("id"),
             }
+
             dataset_fields = get_single_set_fields(** query_params)
             dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
-            all_expressions.update(dataset_expressions)
 
-            # 在dataset_used表中添加记录
+            # 准备dataset_used表中要添加记录
             dataset_used_record = {
                 "region": selected_region,
                 "universe": selected_universe,
@@ -307,10 +307,9 @@ if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数
                 "dataset": dataset.get("id"),
                 "template": selected_template,
             }
-            insert_record("dataset_used", data=dataset_used_record)
+            st.session_state.new_dataset_used = dataset_used_record
 
             # 将dataset_expressions整理成alpha表批量新增记录
-            alpha_records = []
             for name in dataset_expressions:
                 expressions = dataset_expressions[name]
                 for expression in expressions:
@@ -331,38 +330,51 @@ if col6.button("生成Alpha", type="primary"):        # 获取当前选中的数
                     }
                     alpha_records.append(alpha_record)
 
-            alpha_table_name = f"{selected_region.lower()}_alphas"
-            affected_rows = batch_insert_records(alpha_table_name, alpha_records)
-            st.success(f"成功保存 {affected_rows} 条记录到数据库表{alpha_table_name}")
-
-            # st.json(alpha_records)
-        # st.json(all_expressions)
+        st.success(f"使用{selected_template}模板生成了{len(alpha_records)}条Alpha表达式")
+        df = pd.DataFrame(alpha_records[:2000])
+        st.dataframe(df, width='stretch')
+        st.session_state.new_alphas_to_save = alpha_records
 
     else:
         st.warning("请选择数据集与表达式模板")
 
-with col7:
-    if st.button("查询Alpha"):
-        # 获取当前选中的数据集
-        selected_dataset_ids = [dataset.get("id", "") for dataset in st.session_state.selected_datasets]
-        
-        # 查询Alpha记录
-        query_results = query_alphas_by_conditions(
-            selected_region,
-            selected_universe,
-            selected_delay,
-            selected_category,
-            selected_dataset_ids  # 传入选中的数据集ID列表
-        )
-        
-        if query_results:
-            st.session_state.query_results = query_results
-            st.session_state.show_query_results = True
-            st.rerun()
-        else:
-            st.info("未找到相关的Alpha记录")
+if col_save_alphas.button("保存Alpha"):
+    if "new_dataset_used" in st.session_state:
+        insert_record("dataset_used", data=st.session_state.new_dataset_used)
 
-with col8:
+    if "new_alphas_to_save" in st.session_state:
+        alpha_table_name = f"{selected_region.lower()}_alphas"
+        affected_rows = batch_insert_records(alpha_table_name, st.session_state.new_alphas_to_save)
+        st.success(f"成功保存 {affected_rows} 条记录到数据库表{alpha_table_name}")
+    else:
+        st.warning("请先生成Alpha")
+
+if col_query_alphas.button("查询Alpha"):
+        # 获取当前选中的数据集
+        if "selected_datasets" in st.session_state:
+            selected_datasets = st.session_state.get("selected_datasets", [])
+            selected_dataset_ids = [dataset.get("id", "") for dataset in selected_datasets]
+
+            # 查询Alpha记录
+            query_results = query_alphas_by_conditions(
+                selected_region,
+                selected_universe,
+                selected_delay,
+                selected_category,
+                selected_dataset_ids  # 传入选中的数据集ID列表
+            )
+
+            if query_results:
+                st.session_state.query_results = query_results
+                st.session_state.show_query_results = True
+                st.rerun()
+            else:
+                st.info("未找到相关的Alpha记录")
+        else:
+            selected_datasets = []
+            st.info("请选择数据集")
+
+with col_clear:
     if st.button("清空"):
         st.rerun()
 
@@ -379,7 +391,7 @@ if st.session_state.get("show_query_results", False):
         import pandas as pd
 
         # 创建DataFrame并显示
-        df = pd.DataFrame(query_results)
+        df = pd.DataFrame(query_results[:2000])
         st.dataframe(df, width='stretch')
     else:
         st.info("未找到相关记录")
