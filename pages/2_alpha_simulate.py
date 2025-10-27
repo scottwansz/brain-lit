@@ -34,7 +34,7 @@ if "current_simulate_page" not in st.session_state:
     st.session_state.current_simulate_page = 1
 
 # 添加Phase输入
-col_phase, col_n_task_max, col_stats, col_start_simulate, col_simulate_status, col_stop_simulate = st.columns(6, vertical_alignment="bottom")
+col_phase, col_n_task_max, col_stats, col_start_simulate, col_simulate_status, col_stop_simulate = st.columns([2,2,1,1,1,1], vertical_alignment="bottom")
 
 with col_phase:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)

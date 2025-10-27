@@ -24,12 +24,11 @@ st.title("📤 提交Alpha")
 st.markdown("在本页面您可以提交已通过检查的Alpha。")
 
 # Phase输入栏位和统计按钮
-col1, col2, _ = st.columns([1, 1, 2])
+col1, col2, _ = st.columns([1, 1, 2], vertical_alignment="bottom")
+
 with col1:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
 with col2:
-    st.write("")  # 空白行用于对齐
-    st.write("")
     query_button = st.button("统计可提交的Alpha", type="primary")
 
 # 显示分类统计信息
@@ -152,11 +151,10 @@ if st.session_state.get('submittable_alpha_stats'):
 """
 ---
 """
-col_max_submit_count, _ = st.columns([1, 3])
+col_max_submit_count, col4_submit, col6_submit_status, col5_stop_submit, _ = st.columns([2,1,1,1,2], vertical_alignment="bottom")
+
 with col_max_submit_count:
     max_submit_count = st.number_input("提交数量", min_value=1, max_value=20, value=4, step=1)
-
-col4_submit, col6_submit_status, col5_stop_submit, _ = st.columns([1, 1, 1, 3])
 
 task_manager = get_submit_task_manager()
 

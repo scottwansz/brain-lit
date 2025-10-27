@@ -28,18 +28,19 @@ selected_category = st.session_state.selected_category
 # 查询条件
 st.subheader("查询条件")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
-    
-with col2:
-    fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.1)
-    
-with col3:
+col_old_phase_input, col_sharp_input, col_fitness_input, col_query_button = st.columns(4, vertical_alignment="bottom")
+
+with col_old_phase_input:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
 
+with col_sharp_input:
+    sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
+    
+with col_fitness_input:
+    fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.1)
+
 # 查询按钮
-if st.button("查询最佳Alphas", type="primary"):
+if col_query_button.button("查询最佳Alphas"):
     st.session_state.new_alphas_to_save = None
     with st.spinner("正在查询最佳Alphas..."):
         # 调用查询函数获取最佳Alphas
