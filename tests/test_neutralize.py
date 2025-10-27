@@ -1,31 +1,20 @@
 import unittest
 
-from svc.database import query_by_sql, batch_insert_records, update_table
+from svc.database import query_by_sql, batch_insert_records, update_table, query_table
 
 
 class TestNeutralize(unittest.TestCase):
     """测试neutralize方法"""
     def test_neutralize(self):
-        """测试neutralize方法"""
-        # 创建一个测试数据
-        table_name = 'eur_alphas'
 
         sql = f"""
-        WITH ranked_alphas AS (
-            SELECT *,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY name
-                       ORDER BY abs(sharp*fitness) DESC
-                   ) AS rn
-            FROM {table_name}
-            WHERE phase = 1 AND simulated = 1 AND sharp > 1 and fitness > 0.8 and updated_at > '2025-10-21'
-        )
-        select * from ranked_alphas where rn = 1 and used is null
-        -- update {table_name} set used=1 WHERE (id) IN (SELECT id FROM ranked_alphas WHERE rn = 1)
+        select * from asi_alphas where submitted=1 and sharp>1.58 and fitness>1 and used!='1'
         """
 
-        # selected_alphas = query_table(table_name, {'passed': 1})
         selected_alphas = query_by_sql( sql)
+
+        table_name = "asi_alphas"
+        # selected_alphas = query_table(table_name, {'submitted': 1})
 
         # 排除best_alphas中used属性为1的记录
         selected_alphas = [alpha for alpha in selected_alphas if alpha.get('used') != '1']
@@ -52,6 +41,7 @@ class TestNeutralize(unittest.TestCase):
                     'dataset': alpha.get('dataset'),
                     'neutralization': neutralization,
                     'phase': 2,
+                    'used': 1,
                     'simulated': 0,
                 }
                 new_alphas.append(new_alpha)

@@ -16,18 +16,14 @@ from svc.simulate import get_simulate_task_manager
 # 设置logger
 logger = setup_logger(__name__)
 
+st.title("🔬 回测Alpha")
+
 # 渲染共享的侧边栏
 render_sidebar()
 
 # 获取SimulateTaskManager实例
 task_manager = get_simulate_task_manager()
 
-st.title("🔬 回测Alpha")
-
-# 主要内容区域
-st.markdown("在本页面您可以对生成的Alpha进行回测。")
-
-# 从session state获取参数
 selected_region = st.session_state.selected_region
 selected_universe = st.session_state.selected_universe
 selected_delay = st.session_state.selected_delay
@@ -38,7 +34,7 @@ if "current_simulate_page" not in st.session_state:
     st.session_state.current_simulate_page = 1
 
 # 添加Phase输入
-col_phase, col_n_task_max, col_stats = st.columns([1, 1, 2])
+col_phase, col_n_task_max, col_stats, col_start_simulate, col_simulate_status, col_stop_simulate = st.columns(6, vertical_alignment="bottom")
 
 with col_phase:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
@@ -48,9 +44,6 @@ with col_n_task_max:
     n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
 
 with col_stats:
-    st.write("")
-    st.write("")
-    # 统计信息按钮
     if st.button("回测统计", type="primary"):
         # 获取并显示模拟状态统计信息
         simulation_stats = query_alphas_simulation_stats(
@@ -68,10 +61,6 @@ with col_stats:
             st.session_state.simulation_stats_data = simulation_stats
         else:
             st.session_state.simulation_stats_data = None
-
-# 操作按钮
-st.markdown("---")
-col_start_simulate, col_simulate_status, col_stop_simulate, _ = st.columns([1, 1, 1, 4])
 
 # 开始回测按钮
 if col_start_simulate.button("开始回测"):

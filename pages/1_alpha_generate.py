@@ -67,12 +67,9 @@ selected_universe = st.session_state.selected_universe
 selected_delay = st.session_state.selected_delay
 selected_category = st.session_state.selected_category
 
-# 数据集选择部分
-# 创建一行来放置标题和控件
-title_col, unused_col, theme_col, button_col = st.columns([4, 1, 1, 1])
+'''### 选择数据集'''
 
-with title_col:
-    st.subheader("数据集选择")
+col_template, unused_col, theme_col, button_col = st.columns([3, 1, 1, 1], vertical_alignment="bottom")
 
 with unused_col:
     # 获取当前的checkbox状态
@@ -237,7 +234,7 @@ if st.session_state.get("query_datasets_clicked", False):
 
 # 参数设置
 st.subheader("参数设置")
-col1, col2, col3 = st.columns(3)
+col_phase, col1, col2, col3 = st.columns(4)
 
 with col1:
     neutralization = st.selectbox(
@@ -265,8 +262,6 @@ with col2:
 
 with col3:
     truncation = st.slider("截断百分比", 0.01, 1.0, 0.08, 0.01)
-
-col_phase, col_template = st.columns([1, 2])
 
 with col_phase:
     phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=1, step=1)
@@ -346,15 +341,16 @@ if col_save_alphas.button("保存Alpha"):
         alpha_table_name = f"{selected_region.lower()}_alphas"
 
         # 将new_alphas按每200个元素分批处理
-        batch_size = 500
+        batch_size = 200
         new_alphas = st.session_state.new_alphas_to_save
         progress_bar = st.progress(0, text="数据保存进度：0.00%")
         for i in range(0, len(new_alphas), batch_size):
             batch = new_alphas[i:i + batch_size]
             affected_rows = batch_insert_records(alpha_table_name, batch)
-            progress_text = f"数据保存进度: {((i + batch_size) / len(new_alphas)):.2%}"
-            progress_bar.progress(min((i + batch_size) / len(new_alphas), 1.0), text=progress_text)
-        # progress_bar.progress(1.0, text="数据保存进度: 100.00%")
+
+            progress = min((i + batch_size) / len(new_alphas), 1.0)
+            progress_text = f"数据保存进度: {progress:.2%}"
+            progress_bar.progress(progress, text=progress_text)
     else:
         st.warning("请先生成Alpha")
 
