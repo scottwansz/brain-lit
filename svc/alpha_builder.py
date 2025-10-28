@@ -32,12 +32,12 @@ def get_alpha_templates() -> Dict[str, Dict]:
             }
         },
         
-        # ts_regression模板 - 用于残差动量等场景
-        "ts_regression": {
-            "structure": "ts_regression({field_y}, {field_x}, {window}, lag=0, rettype=1)",
-            "description": "回归分析时间序列操作符模板",
+        # ts_two_field_analysis模板 - 用于双字段时间序列分析场景
+        "ts_two_field_analysis": {
+            "structure": "{ts_op}({field_y}, {field_x}, {window})",
+            "description": "双字段时间序列分析操作符模板",
             "category": "simple",
-            "suitable_ts_ops": ["ts_regression"],
+            "suitable_ts_ops": ["ts_regression", "ts_covariance", "ts_corr", "ts_co_kurtosis", "ts_co_skewness", "ts_theilsen"],
             "suitable_windows": [10, 20, 60]
         }
     }
@@ -125,8 +125,8 @@ def generate_simple_expressions(fields: Dict[str, Dict], template_name: str = No
         expressions = {}
         
         try:
-            if tmpl_name == "ts_regression":
-                expressions = _generate_residual_expressions(template, processed_fields, max_expressions)
+            if tmpl_name == "ts_two_field_analysis":
+                expressions = _generate_two_field_ts_expressions(template, processed_fields, max_expressions)
             elif tmpl_name in ["ts_basic", "ts_complex"]:
                 expressions = _generate_simple_expressions(template, processed_fields, max_expressions, tmpl_name)
             
@@ -204,9 +204,9 @@ def _generate_simple_expressions(template: Dict, processed_fields: Dict[str, str
     """生成简单模板表达式，返回带字段信息的结构"""
     expressions = {}
 
-    # 特殊处理ts_regression模板，需要两个字段
-    if template_name == "ts_regression":
-        return _generate_residual_expressions(template, processed_fields, max_expr)
+    # 特殊处理ts_two_field_analysis模板，需要两个字段
+    if template_name == "ts_two_field_analysis":
+        return _generate_two_field_ts_expressions(template, processed_fields, max_expr)
 
     for field in processed_fields:
         field_expr = processed_fields[field]
@@ -337,8 +337,8 @@ def _generate_advanced_expressions(template: Dict, simple_expressions: Dict[str,
                     
     return expressions
 
-def _generate_residual_expressions(template: Dict, processed_fields: Dict[str, str], max_expr: int) -> Dict[str, List[str]]:
-    """生成残差模板表达式，返回带字段信息的结构"""
+def _generate_two_field_ts_expressions(template: Dict, processed_fields: Dict[str, str], max_expr: int) -> Dict[str, List[str]]:
+    """生成双字段时间序列分析表达式，返回带字段信息的结构"""
     expressions = {}
 
     # 直接生成字段对
@@ -362,10 +362,17 @@ def _generate_residual_expressions(template: Dict, processed_fields: Dict[str, s
             if len(expressions[field1]) >= max_expr:
                 break
 
-            expr = template["structure"].format(
-                field_y=field1_expr, field_x=field2_expr, window=window
-            )
-            expressions[field1].append(expr)
+            # 获取模板支持的操作符，遍历所有操作符
+            suitable_ops = template.get("suitable_ts_ops", ["ts_regression"])
+            
+            for ts_op in suitable_ops:
+                expr = template["structure"].format(
+                    ts_op=ts_op, field_y=field1_expr, field_x=field2_expr, window=window
+                )
+                expressions[field1].append(expr)
+                # 如果已达到最大表达式数量，提前退出
+                if len(expressions[field1]) >= max_expr:
+                    break
 
     return expressions
 
@@ -492,6 +499,15 @@ def main():
     for field, field_exprs in vol_exprs.items():
         print(f"  {field}")
         for i, expr in enumerate(field_exprs[:3], 1):
+            print(f"    {i}. {expr}")
+        break  # 只显示一个字段的表达式
+
+    # 测试ts_two_field_analysis表达式生成
+    print(f"\n=== 双字段时间序列分析表达式生成 ===")
+    two_field_exprs = generate_simple_expressions(fields, "ts_two_field_analysis", 20)
+    for field, field_exprs in two_field_exprs.items():
+        print(f"  {field}")
+        for i, expr in enumerate(field_exprs[:20], 1):  # 增加显示数量到20
             print(f"    {i}. {expr}")
         break  # 只显示一个字段的表达式
 
