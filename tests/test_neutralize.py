@@ -1,6 +1,7 @@
 import unittest
 
 from svc.database import query_by_sql, batch_insert_records, update_table, query_table
+from svc.neutralize import neutralize
 
 
 class TestNeutralize(unittest.TestCase):
@@ -12,8 +13,6 @@ class TestNeutralize(unittest.TestCase):
         """
 
         selected_alphas = query_by_sql( sql)
-
-        table_name = "asi_alphas"
         # selected_alphas = query_table(table_name, {'submitted': 1})
 
         # 排除best_alphas中used属性为1的记录
@@ -21,40 +20,18 @@ class TestNeutralize(unittest.TestCase):
 
         print('len(selected_alphas):', len(selected_alphas))
 
-        # 更新原记录使用状态
-        old_ids = [alpha.get('id') for alpha in selected_alphas]
-        update_table(table_name, {'id': old_ids}, {"used": 1})
-
-        new_alphas = []
         selected_neutralization_opts = ["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]
-        for alpha in selected_alphas:
-            for neutralization in selected_neutralization_opts:
-                # 从原始alpha中选择一部分属性来创建新的alpha
-                new_alpha = {
-                    'region': alpha.get('region'),
-                    'universe': alpha.get('universe'),
-                    'delay': alpha.get('delay'),
-                    'alpha': alpha.get('alpha'),
-                    'decay': alpha.get('decay'),
-                    'name': alpha.get('name'),
-                    'category': alpha.get('category'),
-                    'dataset': alpha.get('dataset'),
-                    'neutralization': neutralization,
-                    'phase': 2,
-                    'used': 1,
-                    'simulated': 0,
-                }
-                new_alphas.append(new_alpha)
+        new_alphas = neutralize(selected_alphas, selected_neutralization_opts, new_phase=2)
 
         print('len(new_alphas):', len(new_alphas))
-        
+
         # 将new_alphas按每200个元素分批处理
         batch_size = 200
+        table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
+
         for i in range(0, len(new_alphas), batch_size):
             batch = new_alphas[i:i+batch_size]
             print(f"Processing batch {i//batch_size + 1}: {len(batch)} items")
-            # for j in range(len(batch)):
-            #     print(batch[j])
 
             affected_rows = batch_insert_records(table_name, batch)
             if affected_rows > 0:

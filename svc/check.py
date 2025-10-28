@@ -58,10 +58,12 @@ def check_one_batch(alpha_list, task: dict, manager=None):
     # 初始化已提交计数
     passed_count = task.get('passed_count', 0)
     session = get_auto_login_session()
+    time_start = time.time()
 
     task.update({
         "status": "RUNNING",
-        "progress": 0,
+        "time_start": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "progress": f'0 / {len(alpha_list)}',
         "passed_count": 0,
         "details": "Preparing...",
     })
@@ -131,7 +133,8 @@ def check_one_batch(alpha_list, task: dict, manager=None):
 
         # 更新任务进度
         task.update({
-            "progress": round((i+1) / len(alpha_list) * 100),
+            "time_used": round(time.time() - time_start),
+            "progress": f'{i + 1} / {len(alpha_list)}',
             "passed_count": passed_count,
             "details": f"Processing {i+1} out of {len(alpha_list)} Alphas"
         })
@@ -173,8 +176,8 @@ def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
 
         task.update({
             "alpha_id": alpha_id,
-            "time_used": round(time.time() - time_start),
-            "details": f"Alpha {alpha_id} is checking. Waiting..."
+            # "time_used": round(time.time() - time_start),
+            # "details": f"Alpha {alpha_id} is checking. Waiting..."
         })
         logger.info(f"Alpha {alpha_id} is checking. Waiting...  {round(time.time() - time_start)}")
         time.sleep(60) # float(response.headers["Retry-After"])

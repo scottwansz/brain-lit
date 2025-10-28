@@ -4,6 +4,7 @@ import sys
 import os
 
 from svc.logger import setup_logger
+from svc.neutralize import neutralize, neutralization_array
 
 logger = setup_logger(__name__)
 
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from sidebar import render_sidebar
 from svc.alpha_query import query_checkable_alpha_details
-from svc.database import batch_insert_records, update_table
+from svc.database import batch_insert_records
 
 # 渲染共享的侧边栏
 render_sidebar()
@@ -98,21 +99,6 @@ with col_new_phase:
     new_phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=2, step=1)
 
 # 显示可选择的neutralization列表
-neutralization_array = [
-    "NONE",
-    "REVERSION_AND_MOMENTUM",
-    "STATISTICAL",
-    "CROWDING",
-    "FAST",
-    "SLOW",
-    "MARKET",
-    "SECTOR",
-    "INDUSTRY",
-    "SUBINDUSTRY",
-    "SLOW_AND_FAST",
-    "STATISTICAL",
-    "COUNTRY"
-]
 
 with col_selected_neutralization_opts:
     selected_neutralization_opts = st.multiselect(
@@ -134,32 +120,8 @@ if st.button("生成Risk Neutralization Alphas"):
         # 获取选中的alphas
         selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
 
-        # 更新原记录使用状态
-        old_ids = [alpha.get('id') for alpha in selected_alphas]
-        table_name = f"{selected_region.lower()}_alphas"
-        update_table(table_name, {'id': old_ids}, {"used": 1})
-        
         # 生成新的alphas（模拟过程）
-        new_alphas = []
-        for alpha in selected_alphas:
-            for neutralization in selected_neutralization_opts:
-                # 从原始alpha中选择一部分属性来创建新的alpha
-                new_alpha = {
-                    'region': alpha.get('region'),
-                    'universe': alpha.get('universe'),
-                    'delay': alpha.get('delay'),
-                    'alpha': alpha.get('alpha'),
-                    'name': alpha.get('name'),
-                    'category': alpha.get('category'),
-                    'dataset': alpha.get('dataset'),
-                    'neutralization': neutralization,
-                    'decay': alpha.get('decay'),
-                    'phase': new_phase,
-                    'simulated': 0,
-                    'used': 1
-                }
-                new_alphas.append(new_alpha)
-                st.session_state.new_alphas_to_save = new_alphas
+        st.session_state.new_alphas_to_save = neutralize(selected_alphas, selected_neutralization_opts, new_phase=new_phase)
 
 # 显示新生成的alphas
 if st.session_state.get("new_alphas_to_save"):

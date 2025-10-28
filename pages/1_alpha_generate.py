@@ -7,6 +7,7 @@ from sidebar import render_sidebar
 from svc.database import insert_record, batch_insert_records
 from svc.datafields import get_single_set_fields, get_multi_set_fields
 from svc.logger import setup_logger
+from svc.neutralize import neutralization_array
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -239,21 +240,7 @@ col_phase, col1, col2, col3 = st.columns(4)
 with col1:
     neutralization = st.selectbox(
         "中性化选项",
-        [
-            "NONE",
-            "REVERSION_AND_MOMENTUM",
-            "STATISTICAL",
-            "CROWDING",
-            "FAST",
-            "SLOW",
-            "MARKET",
-            "SECTOR",
-            "INDUSTRY",
-            "SUBINDUSTRY",
-            "SLOW_AND_FAST",
-            "STATISTICAL",
-            "COUNTRY"
-        ],
+        neutralization_array,
         index=9
     )
 
