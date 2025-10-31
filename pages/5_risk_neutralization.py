@@ -104,7 +104,7 @@ with col_selected_neutralization_opts:
     selected_neutralization_opts = st.multiselect(
         "选择Neutralization类型",
         options=neutralization_array,
-        default=["SLOW", "FAST", "SLOW_AND_FAST", "CROWDING", "STATISTICAL", "REVERSION_AND_MOMENTUM"]
+        default=["MARKET", "SECTOR", "INDUSTRY", "COUNTRY"]
     )
 
 # 生成Risk Neutralization Alphas按钮
