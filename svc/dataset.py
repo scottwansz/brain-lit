@@ -84,7 +84,7 @@ def get_all_datasets(params: dict = None):
     
     return all_datasets # , total_count
 
-@st.cache_data(ttl=3600)
+# @st.cache_data(ttl=3600)
 def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
     """
     从数据库获取已使用的数据集ID集合
