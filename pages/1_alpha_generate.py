@@ -281,16 +281,6 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
             dataset_fields = get_single_set_fields(** query_params)
             dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
 
-            # 准备dataset_used表中要添加记录
-            dataset_used_record = {
-                "region": selected_region,
-                "universe": selected_universe,
-                "delay": selected_delay,
-                "dataset": dataset.get("id"),
-                "template": selected_template,
-            }
-            st.session_state.new_dataset_used = dataset_used_record
-
             # 将dataset_expressions整理成alpha表批量新增记录
             for name in dataset_expressions:
                 expressions = dataset_expressions[name]
@@ -321,10 +311,23 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
         st.warning("请选择数据集与表达式模板")
 
 if col_save_alphas.button("保存Alpha"):
-    if "new_dataset_used" in st.session_state:
-        insert_record("dataset_used", data=st.session_state.new_dataset_used)
 
     if "new_alphas_to_save" in st.session_state:
+
+        if "selected_datasets" in st.session_state and selected_template:
+
+            for dataset in st.session_state.selected_datasets:
+                # 准备dataset_used表中要添加记录
+                dataset_used_record = {
+                    "region": selected_region,
+                    "universe": selected_universe,
+                    "delay": selected_delay,
+                    "dataset": dataset.get("id"),
+                    "template": selected_template,
+                }
+
+                insert_record("dataset_used", data=dataset_used_record)
+
         alpha_table_name = f"{selected_region.lower()}_alphas"
 
         # 将new_alphas按每200个元素分批处理
