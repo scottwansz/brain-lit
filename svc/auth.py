@@ -99,7 +99,7 @@ class AutoLoginSession:
             response = self._session.request(method, url, **kwargs)
 
             # 检测到会话失效
-            if response.status_code in (401, 403):
+            if response.status_code == 401: # , 403
                 print(f"会话过期 ({response.status_code})，尝试重新登录...")
                 self.login()
                 response = self._session.request(method, url, **kwargs)
