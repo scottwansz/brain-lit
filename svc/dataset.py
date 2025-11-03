@@ -85,14 +85,15 @@ def get_all_datasets(params: dict = None):
     return all_datasets # , total_count
 
 # @st.cache_data(ttl=3600)
-def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
+def get_used_dataset_ids(region: str, universe: str, delay: int, template: str) -> set:
     """
     从数据库获取已使用的数据集ID集合
     
     Args:
-        region: 区域参数
-        universe: 范围参数
-        delay: 延迟参数
+        region:     区域参数
+        universe:   范围参数
+        delay:      延迟参数
+        template:   表达式模板
         
     Returns:
         已使用的数据集ID集合
@@ -107,9 +108,9 @@ def get_used_dataset_ids(region: str, universe: str, delay: int) -> set:
         # 查询已使用的数据集
         query = """
         SELECT dataset FROM dataset_used 
-        WHERE region = %s AND universe = %s AND delay = %s
+        WHERE region = %s AND universe = %s AND delay = %s AND template = %s
         """
-        cursor.execute(query, (region, universe, delay))
+        cursor.execute(query, (region, universe, delay, template))
         
         # 获取结果
         used_dataset_ids = set()

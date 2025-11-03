@@ -72,6 +72,13 @@ selected_category = st.session_state.selected_category
 
 col_template, unused_col, theme_col, button_col = st.columns([3, 1, 1, 1], vertical_alignment="bottom")
 
+with col_template:
+    # 模板选择
+    templates = get_alpha_templates()
+    template_options = {name: f"{name}: {info['description']}" for name, info in templates.items()}
+    selected_template = st.selectbox("选择Alpha模板", options=list(template_options.keys()),
+                                    format_func=lambda x: template_options[x])
+
 with unused_col:
     # 获取当前的checkbox状态
     current_show_only_unused = st.checkbox(
@@ -142,7 +149,7 @@ if button_col.button("查询数据集"):
     with st.spinner("正在获取数据集列表..."):
         st.session_state.cached_datasets = get_all_datasets(dataset_params)
         # 获取已使用的数据集列表（一次性获取，避免重复查询数据库）
-        st.session_state.cached_used_dataset_ids = get_used_dataset_ids(selected_region, selected_universe, selected_delay)
+        st.session_state.cached_used_dataset_ids = get_used_dataset_ids(selected_region, selected_universe, selected_delay, selected_template)
 
 # 只有当查询按钮被点击时才继续执行数据集查询和显示逻辑
 if st.session_state.get("query_datasets_clicked", False):
@@ -252,13 +259,6 @@ with col3:
 
 with col_phase:
     phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=1, step=1)
-
-with col_template:
-    # 模板选择
-    templates = get_alpha_templates()
-    template_options = {name: f"{name}: {info['description']}" for name, info in templates.items()}
-    selected_template = st.selectbox("选择Alpha模板", options=list(template_options.keys()),
-                                    format_func=lambda x: template_options[x])
 
 # 操作按钮
 st.markdown("---")
