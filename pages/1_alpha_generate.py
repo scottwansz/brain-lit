@@ -4,7 +4,7 @@ import sys
 import streamlit as st
 
 from sidebar import render_sidebar
-from svc.database import insert_record, batch_insert_records
+from svc.database import insert_record, batch_insert_records, query_table
 from svc.datafields import get_single_set_fields, get_multi_set_fields
 from svc.logger import setup_logger
 from svc.neutralize import neutralization_array
@@ -345,31 +345,35 @@ if col_save_alphas.button("保存Alpha"):
         st.warning("请先生成Alpha")
 
 if col_query_alphas.button("查询Alpha"):
-        # 获取当前选中的数据集
-        if "selected_datasets" in st.session_state:
-            selected_datasets = st.session_state.get("selected_datasets", [])
-            selected_dataset_ids = [dataset.get("id", "") for dataset in selected_datasets]
+    query = {
+        "region": selected_region,
+        "universe": selected_universe,
+        "delay": selected_delay,
+        "template": selected_template,
+        "phase": phase,
+    }
 
-            # 查询Alpha记录
-            query_results = query_alphas_by_conditions(
-                selected_region,
-                selected_universe,
-                selected_delay,
-                selected_category,
-                selected_dataset_ids  # 传入选中的数据集ID列表
-            )
+    # 获取当前选中的数据集
+    if "selected_datasets" in st.session_state:
+        selected_datasets = st.session_state.get("selected_datasets", [])
+        selected_dataset_ids = [dataset.get("id", "") for dataset in selected_datasets]
+        query["dataset"] = selected_dataset_ids
 
-            if query_results:
-                st.session_state.query_results = query_results
-                st.session_state.show_query_results = True
-                st.rerun()
-            else:
-                st.info("未找到相关的Alpha记录")
-                st.session_state.query_results = None
-                st.session_state.show_query_results = False
-        else:
-            selected_datasets = []
-            st.info("请选择数据集")
+    if selected_category:
+        query["category"] = selected_category
+
+    table_name = f"{selected_region.lower()}_alphas"
+    query_results = query_table(table_name, conditions= query)
+
+    if query_results:
+        st.session_state.query_results = query_results
+        st.session_state.show_query_results = True
+        st.rerun()
+    else:
+        st.info("未找到相关的Alpha记录")
+        st.session_state.query_results = None
+        st.session_state.show_query_results = False
+
 
 with col_clear:
     if st.button("清空"):

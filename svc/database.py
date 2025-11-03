@@ -39,7 +39,7 @@ def query_by_sql(sql: str) -> List[Dict[str, Any]]:
         print(f"查询数据库时出错: {e}")
         return []
 
-def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int] = None, offset: Optional[int] = None) -> List[Dict[str, Any]]:
+def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int] = 2000, offset: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     通用的数据库查询方法
     
