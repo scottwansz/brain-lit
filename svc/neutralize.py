@@ -40,7 +40,8 @@ def neutralize(selected_alphas, selected_neutralization_opts, new_phase=2):
                 'decay': alpha.get('decay'),
                 'phase': new_phase,
                 'simulated': 0,
-                'used': 1
+                'used': 1,
+                'template': alpha.get('template'),
             }
             new_alphas.append(new_alpha)
 
