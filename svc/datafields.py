@@ -46,12 +46,12 @@ def get_fields_in_page(dataset_id='other699', delay=0, instrument_type='EQUITY',
     return {item['id']: {'type': item['type'], 'coverage': item['coverage']} for item in res_json.get('results', [])}
 
 
-def get_single_set_fields(dataset_id='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600'):
+def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600'):
     """
     获取指定数据集的所有字段信息，返回以id为key，type为value的字典
     
     Args:
-        dataset_id (str): 数据集ID
+        dataset (str): 数据集ID
         delay (int): 延迟
         instrument_type (str): 仪器类型
         region (str): 地区
@@ -69,7 +69,7 @@ def get_single_set_fields(dataset_id='other699', delay=0, instrument_type='EQUIT
     
     while True:
         # 调用现有的get_data_fields方法获取当前页数据
-        batch_dict = get_fields_in_page(dataset_id, delay, instrument_type, limit, offset, region, universe)
+        batch_dict = get_fields_in_page(dataset, delay, instrument_type, limit, offset, region, universe)
         result.update(batch_dict)
         
         # 如果当前页返回的数据少于限制数量，说明已经到最后一页

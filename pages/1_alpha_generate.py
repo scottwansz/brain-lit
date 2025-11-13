@@ -1,5 +1,6 @@
 import os
 import sys
+from collections import defaultdict
 
 import streamlit as st
 
@@ -14,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from svc.dataset import get_all_datasets, get_used_dataset_ids
 from svc.alpha_query import query_alphas_by_conditions
-from svc.alpha_builder import get_alpha_templates, generate_simple_expressions
+from svc.alpha_builder import get_alpha_templates, generate_simple_expressions, generate_complex_expressions
 
 # 设置logger
 logger = setup_logger(__name__)
@@ -275,11 +276,21 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
                 "region": selected_region,
                 "universe": selected_universe,
                 "delay": selected_delay,
-                "dataset_id": dataset.get("id"),
+                "dataset": dataset.get("id"),
             }
 
-            dataset_fields = get_single_set_fields(** query_params)
-            dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
+            if templates[selected_template]["category"] == "simple":
+                dataset_fields = get_single_set_fields(** query_params)
+                dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
+            else:
+                table_name = f"{selected_region.lower()}_alphas"
+                best_records = query_table(table_name, query_params)
+                st.write(best_records)
+
+                simple_expressions = defaultdict(list)
+                for record in best_records:
+                    simple_expressions[record.get("name")].append(record.get("alpha"))
+                dataset_expressions = generate_complex_expressions(simple_expressions, template_name=selected_template)
 
             # 将dataset_expressions整理成alpha表批量新增记录
             for name in dataset_expressions:
