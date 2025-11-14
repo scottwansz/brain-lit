@@ -285,7 +285,6 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
             else:
                 table_name = f"{selected_region.lower()}_alphas"
                 best_records = query_table(table_name, query_params)
-                st.write(best_records)
 
                 simple_expressions = defaultdict(list)
                 for record in best_records:
