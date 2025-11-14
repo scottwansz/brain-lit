@@ -39,14 +39,16 @@ class SimulateTaskManager:
                 "query": query,
                 "stop": False,
                 "n_tasks_max": n_tasks_max,
+                "n_tasks": len(task_info['simulate_ids']),
             })
             logger.info("Simulate task %s is already running.", task_id)
         else:
             simulate_info = {
                 'query': query,
-                'simulate_ids': {},
                 'stop': False,
                 'n_tasks_max': n_tasks_max,
+                'n_tasks': 0,
+                'simulate_ids': {},
             }
             self.simulate_tasks[task_id] = simulate_info
             logger.info("Simulate task %s is started.", task_id)
@@ -192,6 +194,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
 
         with lock:
             simulate_info['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
+            simulate_info['n_tasks'] = len(simulate_info['simulate_ids'])
 
 
 def check_progress(s:AutoLoginSession, simulate_id):
@@ -266,6 +269,7 @@ def check_simulate_task(session: AutoLoginSession, task_info):
 
     for simulate_id in completed_simulate_ids:
         task_info['simulate_ids'].pop(simulate_id)
+        task_info['n_tasks'] = len(task_info['simulate_ids'])
 
     with lock:
         simulate_ids_items  = list(task_info['simulate_ids'].items())
