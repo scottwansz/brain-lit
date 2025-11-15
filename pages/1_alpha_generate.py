@@ -284,6 +284,8 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
                 dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
             else:
                 table_name = f"{selected_region.lower()}_alphas"
+                query_params["phase"] = 3
+                query_params["template"] = 'ts_basic'
                 best_records = query_table(table_name, query_params)
 
                 simple_expressions = defaultdict(list)
@@ -325,14 +327,21 @@ if col_save_alphas.button("保存Alpha"):
     if "new_alphas_to_save" in st.session_state:
 
         if "selected_datasets" in st.session_state and selected_template:
+            # 创建一个集合来存储new_alphas_to_save中涉及的dataset ID
+            alphas_dataset_ids = set()
+            for alpha in st.session_state.new_alphas_to_save:
+                if "dataset" in alpha:
+                    alphas_dataset_ids.add(alpha["dataset"])
 
-            for dataset in st.session_state.selected_datasets:
+            # 只有当new_alphas_to_save中有对应数据集的数据时，才向dataset_used表插入记录
+            for dataset_id in alphas_dataset_ids:
+
                 # 准备dataset_used表中要添加记录
                 dataset_used_record = {
                     "region": selected_region,
                     "universe": selected_universe,
                     "delay": selected_delay,
-                    "dataset": dataset.get("id"),
+                    "dataset": dataset_id,
                     "template": selected_template,
                 }
 

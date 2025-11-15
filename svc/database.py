@@ -3,6 +3,10 @@ from typing import Dict, Any, List, Optional
 import mysql.connector
 import streamlit as st
 
+from svc.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 
 # @st.cache_resource
 def get_db_connection():

@@ -427,7 +427,7 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
 
         import json
 
-        if r['is']['shortCount'] + r['is']['longCount'] <  100:
+        if r['is']['shortCount'] + r['is']['longCount'] <  300:
             passed = -3
             fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
         elif len(fail_reasons) > 1:
