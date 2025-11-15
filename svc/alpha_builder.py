@@ -63,6 +63,19 @@ def get_alpha_templates() -> Dict[str, Dict]:
             "description": "横截面标准化因子",
             "category": "advanced",
             "suitable_cs_ops": ["zscore", "rank", "scale"]
+        },
+        
+        "distribution_normalized": {
+            "structure": "{norm_op}({simple_expr})",
+            "description": "分布标准化因子",
+            "category": "advanced",
+            "suitable_norm_ops": ["rank", "zscore", "scale", "winsorize", "truncate"]
+        },
+        
+        "coverage_improved": {
+            "structure": "group_count(is_nan({simple_expr}), market) > 40 ? {simple_expr} : nan",
+            "description": "改善覆盖率的因子",
+            "category": "advanced"
         }
     }
 
@@ -88,7 +101,11 @@ def process_field_by_coverage(field: str, field_info: Dict) -> str:
     missing_days = 250 * (1 - coverage)
     backfill_window = next((w for w in BACKFILL_WINDOWS if w > missing_days), 250)
 
-    field_expr = f"ts_backfill({field_expr}, {backfill_window})"
+    # 对于覆盖率低于0.6的字段，使用更积极的回填策略
+    if coverage < 0.6:
+        field_expr = f"ts_backfill({field_expr}, {min(backfill_window + 60, 250)})"
+    else:
+        field_expr = f"ts_backfill({field_expr}, {backfill_window})"
 
     return field_expr
 
@@ -163,7 +180,7 @@ def generate_complex_expressions(simple_expressions: Dict[str, List[str]], templ
         expressions = {}
         
         try:
-            if tmpl_name in ["sector_neutral_robust", "volatility_adjusted", "cross_sectional_ops"]:
+            if tmpl_name in ["sector_neutral_robust", "volatility_adjusted", "cross_sectional_ops", "distribution_normalized", "coverage_improved"]:
                 expressions = _generate_advanced_expressions(template, simple_expressions, max_expressions, tmpl_name)
             
             # 合并到总表达式中，去重
@@ -335,6 +352,29 @@ def _generate_advanced_expressions(template: Dict, simple_expressions: Dict[str,
                     expr = template["structure"].format(simple_expr=simple_expr, cs_op=cs_op)
                     expressions[field].append(expr)
                     
+        elif template_name == "distribution_normalized":
+            # 对于distribution_normalized，使用基础模板的输出
+            for simple_expr in simple_exprs[:max_expr]:  # 限制数量
+                for norm_op in template.get("suitable_norm_ops", ["rank", "zscore", "scale", "winsorize", "truncate"]):
+                    if len(expressions[field]) >= max_expr:
+                        break
+                    # 对于需要特殊参数的操作符
+                    if norm_op == "winsorize":
+                        expr = f"{norm_op}({simple_expr}, std=4)"
+                    elif norm_op == "truncate":
+                        expr = f"{norm_op}({simple_expr}, maxPercent=0.01)"
+                    else:
+                        expr = template["structure"].format(simple_expr=simple_expr, norm_op=norm_op)
+                    expressions[field].append(expr)
+                    
+        elif template_name == "coverage_improved":
+            # 对于coverage_improved，使用基础模板的输出
+            for simple_expr in simple_exprs[:max_expr]:  # 限制数量
+                if len(expressions[field]) >= max_expr:
+                    break
+                expr = template["structure"].format(simple_expr=simple_expr)
+                expressions[field].append(expr)
+                    
     return expressions
 
 def _generate_two_field_ts_expressions(template: Dict, processed_fields: Dict[str, str], max_expr: int) -> Dict[str, List[str]]:
@@ -401,6 +441,26 @@ def generate_all_expressions(fields: Dict[str, Dict], template_name: str = None,
         # 对复杂表达式进行去重
         unique_exprs = list(dict.fromkeys(exprs))  # 保持顺序的去重
         all_expressions[field]["complex"] = unique_exprs
+        
+    # 生成分布标准化表达式
+    dist_exprs = generate_complex_expressions(simple_exprs, "distribution_normalized", max_expressions)
+    # 合并到all_expressions中，去重
+    for field, exprs in dist_exprs.items():
+        if field not in all_expressions:
+            all_expressions[field] = {}
+        # 对分布标准化表达式进行去重
+        unique_exprs = list(dict.fromkeys(exprs))  # 保持顺序的去重
+        all_expressions[field]["distribution_normalized"] = unique_exprs
+        
+    # 生成改善覆盖率表达式
+    cov_exprs = generate_complex_expressions(simple_exprs, "coverage_improved", max_expressions)
+    # 合并到all_expressions中，去重
+    for field, exprs in cov_exprs.items():
+        if field not in all_expressions:
+            all_expressions[field] = {}
+        # 对改善覆盖率表达式进行去重
+        unique_exprs = list(dict.fromkeys(exprs))  # 保持顺序的去重
+        all_expressions[field]["coverage_improved"] = unique_exprs
 
     return all_expressions
 
@@ -441,6 +501,13 @@ def get_coverage_advice(fields: Dict[str, Dict]) -> str:
     advice.append(f"  - 从 {BACKFILL_WINDOWS} 中选择大于数据缺失天数的最小窗口")
     advice.append("  - 覆盖率越高，(1-覆盖率)越小，数据缺失天数越少，所选窗口越短")
     advice.append("  - 覆盖率越低，(1-覆盖率)越大，数据缺失天数越多，所选窗口越长")
+    
+    # 添加权重测试建议
+    advice.append("\n权重测试建议:")
+    advice.append("  - 对于覆盖率低于0.6的字段，考虑使用更积极的回填策略")
+    advice.append("  - 使用group_count操作符检测异常下降的覆盖率")
+    advice.append("  - 使用分布标准化操作符(如rank, zscore)减少异常值影响")
+    advice.append("  - 如果尝试所有方法仍无法通过权重测试，请考虑其他因子想法")
 
     return "\n".join(advice)
 
@@ -488,6 +555,24 @@ def main():
     print(f"\n=== 复杂表达式生成 ===")
     complex_exprs = generate_complex_expressions(simple_exprs, "cross_sectional_ops", 3)
     for field, field_exprs in complex_exprs.items():
+        print(f"  {field}")
+        for i, expr in enumerate(field_exprs[:3], 1):
+            print(f"    {i}. {expr}")
+        break  # 只显示一个字段的表达式
+        
+    # 测试分布标准化表达式生成
+    print(f"\n=== 分布标准化表达式生成 ===")
+    dist_exprs = generate_complex_expressions(simple_exprs, "distribution_normalized", 5)
+    for field, field_exprs in dist_exprs.items():
+        print(f"  {field}")
+        for i, expr in enumerate(field_exprs[:5], 1):
+            print(f"    {i}. {expr}")
+        break  # 只显示一个字段的表达式
+        
+    # 测试改善覆盖率的表达式生成
+    print(f"\n=== 改善覆盖率表达式生成 ===")
+    cov_exprs = generate_complex_expressions(simple_exprs, "coverage_improved", 3)
+    for field, field_exprs in cov_exprs.items():
         print(f"  {field}")
         for i, expr in enumerate(field_exprs[:3], 1):
             print(f"    {i}. {expr}")

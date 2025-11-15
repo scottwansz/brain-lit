@@ -427,12 +427,20 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
 
         import json
 
+        if r['is']['shortCount'] + r['is']['longCount'] <  100:
+            passed = -3
+            fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
+        elif len(fail_reasons) > 1:
+            passed = -2
+        else:
+            passed = 0
+
         set_data = {
             'alpha_id': r['id'],
             'sharp': r['is']['sharpe'],
             'turnover': r['is']['turnover'],
             'fitness': r['is'].get('fitness', 0),
-            'passed': -1 if len(fail_reasons) > 1 else 0,
+            'passed': passed,
             'fail_reasons': json.dumps(fail_reasons),
             "simulated": 1,
             'simulate_id': child
