@@ -431,7 +431,7 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
             passed = -3
             fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
         elif len(fail_reasons) > 1:
-            passed = -2
+            passed = -1
         else:
             passed = 0
 
