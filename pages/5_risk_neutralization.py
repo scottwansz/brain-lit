@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from sidebar import render_sidebar
 from svc.alpha_query import query_checkable_alpha_details
-from svc.database import batch_insert_records
+from svc.database import batch_insert_records, update_table
 
 # 渲染共享的侧边栏
 render_sidebar()
@@ -137,7 +137,12 @@ else:
 # 添加保存到数据库的按钮
 if st.button("保存到数据库"):
     st.session_state.save_new_alphas = True
-    # st.rerun()
+
+    # 更新原记录使用状态
+    selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
+    table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
+    old_ids = [alpha.get('id') for alpha in selected_alphas]
+    update_table(table_name, {'id': old_ids}, {"used": 1})
 
     # 处理保存操作
     if st.session_state.get("save_new_alphas", False) and st.session_state.new_alphas_to_save:

@@ -18,11 +18,6 @@ neutralization_array = [
 
 def neutralize(selected_alphas, selected_neutralization_opts, new_phase=2):
 
-    # 更新原记录使用状态
-    table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
-    old_ids = [alpha.get('id') for alpha in selected_alphas]
-    update_table(table_name, {'id': old_ids}, {"used": 1})
-
     new_alphas = []
 
     for alpha in selected_alphas:
