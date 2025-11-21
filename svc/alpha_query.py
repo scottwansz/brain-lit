@@ -165,7 +165,7 @@ def query_alphas_simulation_stats(region: str, universe: str, delay: int, catego
         return []
 
 
-def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
+def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: str, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8, passed: int = 0) -> List[Dict[str, Any]]:
     """
     查询可提交的Alpha统计数据（按分类分组）
     
@@ -176,6 +176,7 @@ def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: s
         phase: 阶段
         sharp_threshold: sharp阈值，默认为1.0
         fitness_threshold: fitness阈值，默认为0.8
+        passed: passed状态，默认为0
         
     Returns:
         按分类分组的可提交Alpha统计结果
@@ -202,12 +203,12 @@ def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: s
             WHERE region = %s AND universe = %s AND delay = %s AND phase = %s AND simulated = 1
         )
         SELECT category, COUNT(*) as count FROM ranked_alphas 
-        WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
+        WHERE rn = 1 AND passed = %s AND sharp >= %s AND fitness >= %s
         GROUP BY category
         ORDER BY count DESC
         """
         
-        cursor.execute(count_query, (region, universe, delay, phase, sharp_threshold, fitness_threshold))
+        cursor.execute(count_query, (region, universe, delay, phase, passed, sharp_threshold, fitness_threshold))
         results = cursor.fetchall()
         
         cursor.close()
@@ -219,7 +220,7 @@ def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: s
         return []
 
 
-def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str = None, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8) -> List[Dict[str, Any]]:
+def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str = None, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8, passed: int = 0) -> List[Dict[str, Any]]:
     """
     查询指定分类下可提交的Alpha详细信息
     
@@ -231,6 +232,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         category: 分类，如果为None则查询所有分类
         sharp_threshold: sharp阈值，默认为1.0
         fitness_threshold: fitness阈值，默认为0.8
+        passed: passed状态，默认为0
         
     Returns:
         可提交Alpha的详细信息列表
@@ -261,14 +263,14 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         # 如果指定了分类，则添加分类条件
         if category is not None:
             base_query += " AND category = %s"
-            params = (region, universe, delay, phase, category, sharp_threshold, fitness_threshold)
+            params = (region, universe, delay, phase, category, passed, sharp_threshold, fitness_threshold)
         else:
-            params = (region, universe, delay, phase, sharp_threshold, fitness_threshold)
+            params = (region, universe, delay, phase, passed, sharp_threshold, fitness_threshold)
             
         base_query += """
         )
         SELECT * FROM ranked_alphas 
-        WHERE rn = 1 AND passed = 0 AND sharp >= %s AND fitness >= %s
+        WHERE rn = 1 AND passed = %s AND sharp >= %s AND fitness >= %s
         ORDER BY abs(sharp*fitness) DESC 
         LIMIT 500
         """

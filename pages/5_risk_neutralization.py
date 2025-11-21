@@ -29,7 +29,7 @@ selected_category = st.session_state.selected_category
 # 查询条件
 st.subheader("查询条件")
 
-col_old_phase_input, col_sharp_input, col_fitness_input, col_query_button = st.columns(4, vertical_alignment="bottom")
+col_old_phase_input, col_sharp_input, col_fitness_input, col_passed_input, col_query_button = st.columns(5, vertical_alignment="bottom")
 
 with col_old_phase_input:
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
@@ -39,6 +39,9 @@ with col_sharp_input:
     
 with col_fitness_input:
     fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.1)
+
+with col_passed_input:
+    passed = st.number_input("Passed状态", min_value=-2, max_value=2, value=0, step=1)
 
 # 查询按钮
 if col_query_button.button("查询最佳Alphas"):
@@ -52,7 +55,8 @@ if col_query_button.button("查询最佳Alphas"):
             phase=phase,
             category=None if selected_category == "" else selected_category,
             sharp_threshold=sharp_threshold,
-            fitness_threshold=fitness_threshold
+            fitness_threshold=fitness_threshold,
+            passed=passed
         )
 
         # 排除best_alphas中used属性为'1'的记录
