@@ -37,7 +37,7 @@ class SubmitTaskManager:
             "stop": False,
             "submitted_count": 0,
             "max_submit_count": max_submit_count,
-            "progress": 0,
+            "progress": f'0/{len(records)}',
             "alphas_id": None,
             "time_started": None,
             "status": "RUNNING",
@@ -54,7 +54,11 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any], manager=N
     max_submit_count = status.get("max_submit_count", 4)
     session = get_auto_login_session()
 
-    for record in records:
+    for idx, record in enumerate(records, start=1):
+        status.update({
+            "progress": f'{idx}/{len(records)}',
+        })
+
         # 检查是否需要停止提交
         if status.get("stop", False):
             status.update({
