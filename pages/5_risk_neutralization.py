@@ -38,7 +38,7 @@ with col_sharp_input:
     sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
     
 with col_fitness_input:
-    fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.1)
+    fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.05)
 
 with col_passed_input:
     passed = st.number_input("Passed状态", min_value=-2, max_value=2, value=0, step=1)
@@ -77,8 +77,8 @@ if "best_alphas" in st.session_state and st.session_state.best_alphas:
     df = pd.DataFrame(st.session_state.best_alphas)
     
     # 选择需要显示的列
-    display_columns = ['id', 'name', 'alpha', 'sharp', 'fitness', 'decay', 'neutralization', 'category']
-    df_display = df[display_columns].copy()
+    # display_columns = ['id', 'name', 'alpha', 'sharp', 'fitness', 'decay', 'neutralization', 'category']
+    df_display = df.copy()  # [display_columns]
     
     # 使用st.dataframe显示，启用选择功能
     event = st.dataframe(
@@ -149,23 +149,25 @@ if st.button("保存到数据库"):
     update_table(table_name, {'id': old_ids}, {"used": 1})
 
     # 处理保存操作
-    if st.session_state.get("save_new_alphas", False) and st.session_state.new_alphas_to_save:
+    if st.session_state.save_new_alphas and st.session_state.new_alphas_to_save:
         new_alphas_to_save = st.session_state.new_alphas_to_save
+        # 将new_alphas按每200个元素分批处理
+        batch_size = 200
+        progress_bar = st.progress(0, text="数据保存进度：0.00%")
+
         try:
             # 根据地区确定表名
             table_name = f"{selected_region.lower()}_alphas"
-            # 调用批量插入接口保存数据
-            # logger.info(f"批量插入数据到表 {table_name}: %s", new_alphas_to_save)
-            affected_rows = batch_insert_records(table_name, new_alphas_to_save)
-            if affected_rows > 0:
-                st.session_state.save_success = True
-                st.session_state.affected_rows = affected_rows
-                st.success(f"成功保存 {affected_rows} 条记录到数据库")
-            else:
-                st.session_state.save_success = False
-                st.error("保存到数据库时出错")
+
+            for i in range(0, len(new_alphas_to_save), batch_size):
+                batch = new_alphas_to_save[i:i + batch_size]
+                affected_rows = batch_insert_records(table_name, batch)
+
+                progress = min((i + batch_size) / len(new_alphas_to_save), 1.0)
+                progress_text = f"数据保存进度: {progress:.2%}"
+                progress_bar.progress(progress, text=progress_text)
+
         except Exception as e:
-            st.session_state.save_success = False
             st.error(f"保存到数据库时发生异常: {str(e)}")
         finally:
             # 清除保存标志
