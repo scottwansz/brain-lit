@@ -40,7 +40,7 @@ with st.container(horizontal=True, horizontal_alignment="left", vertical_alignme
     neutralization = st.selectbox(
         "中性化选项",
         neutralization_array,
-        index=9
+        index=0
     )
 
     # 查询按钮
@@ -57,7 +57,7 @@ with st.container(horizontal=True, horizontal_alignment="left", vertical_alignme
                 sharp_threshold=sharp_threshold,
                 fitness_threshold=fitness_threshold,
                 passed=passed,
-                neutralization=neutralization
+                neutralization=neutralization if neutralization != "NONE" else None
             )
 
             # 排除best_alphas中used属性为'1'的记录
