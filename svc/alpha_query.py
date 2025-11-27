@@ -220,7 +220,9 @@ def query_checkable_alpha_stats(region: str, universe: str, delay: int, phase: s
         return []
 
 
-def query_checkable_alpha_details(region: str, universe: str, delay: int, phase: str, category: str = None, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8, passed: int = 0) -> List[Dict[str, Any]]:
+def query_checkable_alpha_details(
+        region: str, universe: str, delay: int, phase: str, category: str = None, sharp_threshold: float = 1.0, fitness_threshold: float = 0.8, passed: int = 0, neutralization: str = None
+) -> List[Dict[str, Any]]:
     """
     查询指定分类下可提交的Alpha详细信息
     
@@ -233,6 +235,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         sharp_threshold: sharp阈值，默认为1.0
         fitness_threshold: fitness阈值，默认为0.8
         passed: passed状态，默认为0
+        neutralization: neutralization筛选条件，默认为None表示不筛选
         
     Returns:
         可提交Alpha的详细信息列表
@@ -263,9 +266,16 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         # 如果指定了分类，则添加分类条件
         if category is not None:
             base_query += " AND category = %s"
-            params = (region, universe, delay, phase, category, passed, sharp_threshold, fitness_threshold)
+            params = [region, universe, delay, phase, category]
         else:
-            params = (region, universe, delay, phase, passed, sharp_threshold, fitness_threshold)
+            params = [region, universe, delay, phase]
+            
+        # 如果指定了neutralization，则添加筛选条件
+        if neutralization is not None:
+            base_query += " AND neutralization = %s"
+            params.append(neutralization)
+            
+        params.extend([passed, sharp_threshold, fitness_threshold])
             
         base_query += """
         )
@@ -275,7 +285,7 @@ def query_checkable_alpha_details(region: str, universe: str, delay: int, phase:
         LIMIT 500
         """
         
-        cursor.execute(base_query, params)
+        cursor.execute(base_query, tuple(params))
         # logger.info('query_checkable_alpha_details SQL: %s', cursor.statement)
         results = cursor.fetchall()
         

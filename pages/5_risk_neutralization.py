@@ -29,45 +29,46 @@ selected_category = st.session_state.selected_category
 # 查询条件
 st.subheader("查询条件")
 
-col_old_phase_input, col_sharp_input, col_fitness_input, col_passed_input, col_query_button = st.columns(5, vertical_alignment="bottom")
-
-with col_old_phase_input:
+with st.container(horizontal=True):
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
-
-with col_sharp_input:
     sharp_threshold = st.number_input("Sharp阈值", value=1.0, min_value=0.0, step=0.1)
-    
-with col_fitness_input:
     fitness_threshold = st.number_input("Fitness阈值", value=0.8, min_value=0.0, step=0.05)
 
-with col_passed_input:
+with st.container(horizontal=True, horizontal_alignment="left", vertical_alignment="bottom"):
     passed = st.number_input("Passed状态", min_value=-2, max_value=2, value=0, step=1)
 
-# 查询按钮
-if col_query_button.button("查询最佳Alphas"):
-    st.session_state.new_alphas_to_save = None
-    with st.spinner("正在查询最佳Alphas..."):
-        # 调用查询函数获取最佳Alphas
-        best_alphas = query_checkable_alpha_details(
-            region=selected_region,
-            universe=selected_universe,
-            delay=selected_delay,
-            phase=phase,
-            category=None if selected_category == "" else selected_category,
-            sharp_threshold=sharp_threshold,
-            fitness_threshold=fitness_threshold,
-            passed=passed
-        )
+    neutralization = st.selectbox(
+        "中性化选项",
+        neutralization_array,
+        index=9
+    )
 
-        # 排除best_alphas中used属性为'1'的记录
-        best_alphas = [alpha for alpha in best_alphas if alpha.get('used') != '1']
-        
-        if best_alphas:
-            st.session_state.best_alphas = best_alphas
-            st.success(f"成功查询到 {len(best_alphas)} 个最佳Alphas")
-        else:
-            st.warning("未找到符合查询条件的最佳Alphas")
-            st.session_state.best_alphas = []
+    # 查询按钮
+    if st.button("查询最佳Alphas"):
+        st.session_state.new_alphas_to_save = None
+        with st.spinner("正在查询最佳Alphas..."):
+            # 调用查询函数获取最佳Alphas
+            best_alphas = query_checkable_alpha_details(
+                region=selected_region,
+                universe=selected_universe,
+                delay=selected_delay,
+                phase=phase,
+                category=None if selected_category == "" else selected_category,
+                sharp_threshold=sharp_threshold,
+                fitness_threshold=fitness_threshold,
+                passed=passed,
+                neutralization=neutralization
+            )
+
+            # 排除best_alphas中used属性为'1'的记录
+            best_alphas = [alpha for alpha in best_alphas if alpha.get('used') != '1']
+
+            if best_alphas:
+                st.session_state.best_alphas = best_alphas
+                st.toast(f":green[成功查询到 {len(best_alphas)} 个最佳Alphas]", icon="✅")
+            else:
+                st.toast(f":orange[未找到符合查询条件的最佳Alphas]", icon="❌")
+                st.session_state.best_alphas = []
 
 # 显示查询结果
 if "best_alphas" in st.session_state and st.session_state.best_alphas:
