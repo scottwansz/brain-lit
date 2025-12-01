@@ -30,8 +30,9 @@ class CheckTaskManager:
             "details": "Preparing...",
         }
 
-    def start(self, records: List[Dict[str, Any]]):
+    def start(self, records: List[Dict[str, Any]], query:dict[str, Any]):
         self.status.update({
+            "query": query,
             "stop": False,
             "passed_count": 0,
             "progress": 0,

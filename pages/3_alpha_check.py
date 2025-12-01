@@ -136,23 +136,34 @@ if st.session_state.get('checkable_alpha_stats'):
             st.dataframe(df)
         else:
             st.info("该分类下暂无可检查的Alpha")
+
+        col3, col4, col5 = st.columns([1, 1, 4])
+
+        task_manager = get_check_task_manager()
+
+        with col3:
+            if st.button("检查Alpha", type="primary"):
+                alpha_details = st.session_state.current_category_details
+                # 组织查询参数字典
+                query_params = {
+                    'region': region,
+                    'universe': universe,
+                    'delay': delay,
+                    'phase_value': phase_value,
+                    'chosen_category': chosen_category,
+                    'sharp_val': sharp_val,
+                    'fitness_val': fitness_val
+                }
+                task_manager.start(records=alpha_details, query=query_params)
+
+        if col4.button("检查状态"):
+            # 显示simulate_tasks信息
+            st.write("当前检查状态信息:")
+            st.json(task_manager.status)
+
+        if col5.button("停止检查"):
+            task_manager.status["stop"] = True
+            task_manager.status["details"] = "Stopped by user"
+
     else:
         st.info("暂无可检查的Alpha")
-
-col3, col4, col5 = st.columns([1, 1, 4])
-
-task_manager = get_check_task_manager()
-
-with col3:
-    if st.button("检查Alpha", type="primary"):
-        alpha_details = st.session_state.current_category_details
-        task_manager.start(records=alpha_details)
-
-if col4.button("检查状态"):
-    # 显示simulate_tasks信息
-    st.write("当前检查状态信息:")
-    st.json(task_manager.status)
-
-if col5.button("停止检查"):
-    task_manager.status["stop"] = True
-    task_manager.status["details"] = "Stopped by user"
