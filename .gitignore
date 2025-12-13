@@ -12,3 +12,5 @@ wheels/
 
 # Streamlit secrets
 secrets.toml
+
+data/
