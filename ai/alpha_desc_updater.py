@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 dataset_url = 'https://api.worldquantbrain.com/data-sets'
 alpha_url = 'https://platform.worldquantbrain.com/alpha'
 
-all_operator_descriptions = json.load(open(os.path.join(os.path.dirname(__file__), 'alpha_description.json')))
+all_operator_descriptions = json.load(open(os.path.join(os.path.dirname(__file__), 'alpha_operators.json')))
 # print(operator_descriptions)
 
 
