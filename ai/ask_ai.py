@@ -41,7 +41,6 @@ Idea: In normal market conditions, if a stock is shorted more, its likelihood of
 Rationale for data used: shrt3_bar field is a vector data field representing the demand to borrow stock, with higher values indicating higher demand
 Rationale for operators used:
 vec_avg(): Calculates the average value of shrt3_bar for a given day
-Conditional operator: Separates normal cases from extreme ones
 ts_backfill: Handles NaN values in the data field, detected by checking the coverage with a visualization tool"""
 
 def ask_local_ai():

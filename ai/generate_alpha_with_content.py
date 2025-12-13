@@ -91,10 +91,12 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         17. 避免在事件类型字段上使用ts_decay_linear函数
 
         请严格按照以下格式输出，每行一个Alpha:
-        字段名||模板名||Alpha表达式||经济学解释
+        字段名||模板名||Alpha表达式||AI生成此Alpha的原因（因子在什么情况下产生买入或卖出信号）[英文翻译]||数据字段使用理由[英文翻译]||操作符使用理由[英文翻译]
         
         例如:
-        snt21_neg_mean||负面情绪动量||ts_rank(ts_decay_linear(snt21_neg_mean, 10)) - ts_rank(ts_decay_exp_window(snt21_neg_mean, 5, 3))||通过衡量负面情绪的线性和指数衰减差异，捕捉市场情绪的反转信号
+        snt21_neg_mean||负面情绪动量||ts_rank(ts_decay_linear(snt21_neg_mean, 10)) - ts_rank(ts_decay_exp_window(snt21_neg_mean, 5, 3))||当负面情绪上升到一定程度后出现衰减时，可能预示着市场情绪反转，产生买入信号[When negative sentiment rises to a certain level and then decays, it may signal a market sentiment reversal, generating a buy signal]||使用snt21_neg_mean字段因为它是衡量市场负面情绪的关键指标[The snt21_neg_mean field is used because it is a key indicator for measuring negative market sentiment]||使用ts_decay_linear和ts_decay_exp_window操作符来比较不同衰减模式下的效果[Using ts_decay_linear and ts_decay_exp_window operators to compare effects under different decay patterns]
+        
+        注意：每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
         
         注意：
         1. 只返回上述格式的内容，不要包含其他解释或说明
@@ -107,6 +109,7 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         8. 避免使用科学计数法，使用小数形式
         9. ts_decay_exp_window函数的factor参数必须是整数
         10. 避免在事件类型字段上使用ts_decay_linear函数
+        11. 每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
         """
 
         # 调用AI生成Alpha
@@ -119,11 +122,13 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         for line in lines:
             if line.strip() and '||' in line:
                 parts = line.split('||')
-                if len(parts) >= 4:
+                if len(parts) >= 6:
                     field_name = parts[0].strip()
                     template_name = parts[1].strip()
                     alpha_expression = parts[2].strip()
                     economic_explanation = parts[3].strip()
+                    data_field_rationale = parts[4].strip()
+                    operator_rationale = parts[5].strip()
                     
                     # 按字段组织
                     if field_name not in result:
@@ -133,8 +138,34 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
                     if template_name not in result[field_name]:
                         result[field_name][template_name] = []
                     
-                    # 添加Alpha表达式
-                    result[field_name][template_name].append(alpha_expression)
+                    # 添加Alpha表达式及相关信息
+                    reason_cn, reason_en = economic_explanation, ''
+                    if '[' in economic_explanation and economic_explanation.endswith(']'):
+                        parts = economic_explanation.rsplit('[', 1)
+                        reason_cn = parts[0]
+                        reason_en = parts[1][:-1]
+                    
+                    field_rationale_cn, field_rationale_en = data_field_rationale, ''
+                    if '[' in data_field_rationale and data_field_rationale.endswith(']'):
+                        parts = data_field_rationale.rsplit('[', 1)
+                        field_rationale_cn = parts[0]
+                        field_rationale_en = parts[1][:-1]
+                    
+                    operator_rationale_cn, operator_rationale_en = operator_rationale, ''
+                    if '[' in operator_rationale and operator_rationale.endswith(']'):
+                        parts = operator_rationale.rsplit('[', 1)
+                        operator_rationale_cn = parts[0]
+                        operator_rationale_en = parts[1][:-1]
+                    
+                    result[field_name][template_name].append({
+                        "expression": alpha_expression,
+                        "reason_for_generation": reason_cn,
+                        "reason_for_generation_en": reason_en,
+                        "data_field_rationale": field_rationale_cn,
+                        "data_field_rationale_en": field_rationale_en,
+                        "operator_rationale": operator_rationale_cn,
+                        "operator_rationale_en": operator_rationale_en
+                    })
         
         return result
         
