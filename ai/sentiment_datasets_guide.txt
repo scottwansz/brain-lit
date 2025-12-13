@@ -1,0 +1,16 @@
+Getting started with Sentiment Datasets
+Tips for getting started with Sentiment Datasets:
+Sentiment represents the aggregate market mood about stocks.
+Rising stock price is characterized by positive or "bullish" sentiment, while a declining stock price is characterized by negative or "bearish" sentiment.
+The intensity of sentiment represents the strength of the sentiment.
+A high intensity of sentiment, regardless of the mood or direction, exists when strong market moves occur.
+For example, positive market sentiment combined with high intensity is typically a characteristic of strong bullish moves in prices.
+Sentiment data can help us better predict market behavior and improve our forecasting, not only for price direction but also for volatility and volume traded.
+Sentiment data have data fields of sentiment scores of an event. Unlike fundamental data, these data naturally have high frequencies, which leads to high turnovers in an Alpha.
+To achieve reasonable margin rates, you are advised to use the following operations: hump_decay, ts_decay_linear, and ts_decay_exp_window. But you should be careful with the usage of lookback days greater than 63 (i.e., one quarter) as older events may have no impact.
+Data may be based on information from newspapers, news websites, Facebook, Twitter, blog posts, discussion groups, and forums.
+Social sentiment indicators help investors identify information in social media that could cause a stock's price to increase or decrease in the near future. They also help businesses understand how they may be performing in the eyes of their consumers.
+Example Alpha Ideas:
+
+Long/short stocks with positive/negative sentiment, filtering out days and stocks with low sentiment volume.
+Use sentiment volume as a proxy for the market's attention towards a stock. This could be used directly as a stock returns predictor or a condition in trade_when.
