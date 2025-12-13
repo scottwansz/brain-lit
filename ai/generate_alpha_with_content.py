@@ -51,7 +51,7 @@ def load_platform_content(dataset='sentiment21', delay=1, instrument_type='EQUIT
     return contents
 
 
-def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analysis", count: int = 3) -> Dict[str, Dict[str, List[str]]]:
+def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analysis", count: int = 3) -> List[Dict[str, Any]]:
     """
     使用平台知识生成多个Alpha表达式
     
@@ -60,8 +60,20 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         count: 生成的Alpha表达式数量
     
     Returns:
-        按字段和模板名组织的Alpha表达式字典
-        格式: {字段名: {模板名: [表达式1, 表达式2, ...]}}
+        扁平结构的Alpha表达式列表
+        格式: [
+            {
+                "field_name": "字段名",
+                "template_name": "模板名", 
+                "expression": "Alpha表达式",
+                "reason_for_generation": "生成原因(中文)",
+                "reason_for_generation_en": "生成原因(英文)",
+                "data_field_rationale": "数据字段使用理由(中文)",
+                "data_field_rationale_en": "数据字段使用理由(英文)",
+                "operator_rationale": "操作符使用理由(中文)",
+                "operator_rationale_en": "操作符使用理由(英文)"
+            }
+        ]
     """
     try:
         # 加载平台内容
@@ -83,18 +95,18 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         6. 考虑使用hump_decay, ts_decay_linear, 和 ts_decay_exp_window等操作来实现合理的保证金率
         7. 仅使用WorldQuant平台实际支持的操作符和函数，参考平台文档中的alpha_operators部分定义
         8. 仅使用WorldQuant平台实际可用的数据字段，参考平台文档中的data_fields部分定义，不要使用假设的字段
-        9. 可以使用close, returns, volume等基本价格和交易量字段
+        9. 可以使用close, returns, volume等基本价格和交易量字段，但注意returns是字段不是函数，如需计算收益应使用ts_returns函数
         12. 函数参数规则：对于带有可选参数的函数，必须明确写出参数名和等号，例如hump_decay(x, p=0)不能写成hump_decay(x, 0)
-        14. ts_decay_exp_window函数需要三个参数: ts_decay_exp_window(x, d, factor)
         15. 避免使用科学计数法（如1e-6），改用小数形式（如0.000001）
-        16. ts_decay_exp_window函数的factor参数必须是整数
-        17. 避免在事件类型字段上使用ts_decay_linear函数
+        16. 不要使用不存在的操作符，如if操作符，应使用if_else操作符替代
+        17. 注意函数参数类型：位置参数不能使用关键字形式，可选参数必须使用关键字形式。例如ts_decay_linear(x, d)中的d是位置参数，不能写成ts_decay_linear(x, d=10)；而ts_decay_linear(x, d, dense=false)中的dense是可选参数，必须写成ts_decay_linear(x, d, dense=false)
+        18. 确保函数具有所需的全部参数：例如ts_rank(x, d, constant=0)至少需要x和d两个参数
 
         请严格按照以下格式输出，每行一个Alpha:
         字段名||模板名||Alpha表达式||AI生成此Alpha的原因（因子在什么情况下产生买入或卖出信号）[英文翻译]||数据字段使用理由[英文翻译]||操作符使用理由[英文翻译]
         
         例如:
-        snt21_neg_mean||负面情绪动量||ts_rank(ts_decay_linear(snt21_neg_mean, 10)) - ts_rank(ts_decay_exp_window(snt21_neg_mean, 5, 3))||当负面情绪上升到一定程度后出现衰减时，可能预示着市场情绪反转，产生买入信号[When negative sentiment rises to a certain level and then decays, it may signal a market sentiment reversal, generating a buy signal]||使用snt21_neg_mean字段因为它是衡量市场负面情绪的关键指标[The snt21_neg_mean field is used because it is a key indicator for measuring negative market sentiment]||使用ts_decay_linear和ts_decay_exp_window操作符来比较不同衰减模式下的效果[Using ts_decay_linear and ts_decay_exp_window operators to compare effects under different decay patterns]
+        snt21_neg_mean||负面情绪动量||ts_rank(ts_decay_linear(snt21_neg_mean, 10), 10) - ts_rank(ts_decay_exp_window(snt21_neg_mean, 5, factor=0.5), 10)||当负面情绪上升到一定程度后出现衰减时，可能预示着市场情绪反转，产生买入信号[When negative sentiment rises to a certain level and then decays, it may signal a market sentiment reversal, generating a buy signal]||使用snt21_neg_mean字段因为它是衡量市场负面情绪的关键指标[The snt21_neg_mean field is used because it is a key indicator for measuring negative market sentiment]||使用ts_decay_linear和ts_decay_exp_window操作符来比较不同衰减模式下的效果[Using ts_decay_linear and ts_decay_exp_window operators to compare effects under different decay patterns]
         
         注意：每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
         
@@ -107,16 +119,19 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         6. 确保使用的数据字段是真实存在的，不要编造字段名
         7. 确保函数参数数量正确，特别是hump_decay只需要两个参数
         8. 避免使用科学计数法，使用小数形式
-        9. ts_decay_exp_window函数的factor参数必须是整数
-        10. 避免在事件类型字段上使用ts_decay_linear函数
-        11. 每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
+        9. 避免在事件类型字段上使用ts_decay_linear函数
+        10. 不要使用不存在的操作符，如if操作符，应使用if_else操作符替代
+        11. 注意函数参数类型：位置参数不能使用关键字形式，可选参数必须使用关键字形式
+        12. returns是字段不是函数，如需计算收益应使用ts_returns函数
+        13. 确保函数具有所需的全部参数，如ts_rank至少需要两个位置参数
+        14. 每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
         """
 
         # 调用AI生成Alpha
         response = ask_dashscope(prompt)
         
         # 解析响应并组织成指定格式
-        result = {}
+        result = []
         lines = response.strip().split('\n')
         
         for line in lines:
@@ -129,14 +144,6 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
                     economic_explanation = parts[3].strip()
                     data_field_rationale = parts[4].strip()
                     operator_rationale = parts[5].strip()
-                    
-                    # 按字段组织
-                    if field_name not in result:
-                        result[field_name] = {}
-                    
-                    # 按模板名组织
-                    if template_name not in result[field_name]:
-                        result[field_name][template_name] = []
                     
                     # 添加Alpha表达式及相关信息
                     reason_cn, reason_en = economic_explanation, ''
@@ -157,7 +164,9 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
                         operator_rationale_cn = parts[0]
                         operator_rationale_en = parts[1][:-1]
                     
-                    result[field_name][template_name].append({
+                    result.append({
+                        "field_name": field_name,
+                        "template_name": template_name,
                         "expression": alpha_expression,
                         "reason_for_generation": reason_cn,
                         "reason_for_generation_en": reason_en,
@@ -173,7 +182,7 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         error_msg = f"生成Alpha时发生错误: {str(e)}"
         print(error_msg, file=sys.stderr)
         # 返回空的结果格式
-        return {}
+        return []
 
 
 def main():
