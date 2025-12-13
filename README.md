@@ -33,6 +33,21 @@ python -m src.brain_lit.main
 streamlit run src/brain_lit/app.py
 ```
 
+## 获取受限文档
+
+项目包含一个工具用于获取WorldQuant平台的受限文档:
+
+```bash
+# 获取文档内容并输出到控制台
+python fetch_restricted_doc.py
+
+# 获取文档内容并保存到文件
+python fetch_restricted_doc.py document_content.html
+
+# 获取文档内容并以JSON格式输出
+python fetch_restricted_doc.py --json
+```
+
 ## 运行测试
 
 ```bash

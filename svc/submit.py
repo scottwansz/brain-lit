@@ -6,8 +6,8 @@ import streamlit as st
 import time
 import json
 
-from alpha_desc.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha_desc
-from alpha_desc.ask_ai import ask_dashscope, ai_prompt
+from ai.alpha_desc_updater import get_alpha_desc_related_info, update_brain_alpha_desc
+from ai.ask_ai import ask_dashscope, ai_prompt
 from svc.auth import get_auto_login_session, AutoLoginSession
 from svc.database import update_table
 from svc.logger import setup_logger

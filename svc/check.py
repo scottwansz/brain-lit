@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from alpha_desc.alpha_desc_updater import update_brain_alpha_desc
+from ai.alpha_desc_updater import update_brain_alpha_desc
 from svc.alpha_query import query_checkable_alpha_details
 from svc.auth import get_auto_login_session, AutoLoginSession
 from svc.database import update_table

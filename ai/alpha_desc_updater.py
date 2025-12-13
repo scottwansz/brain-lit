@@ -6,7 +6,7 @@ from typing import Optional, List
 
 import requests
 
-from alpha_desc.ask_ai import ask_dashscope, ai_prompt
+from ai.ask_ai import ask_dashscope, ai_prompt
 from svc.auth import AutoLoginSession
 
 logger = logging.getLogger(__name__)
