@@ -11,7 +11,7 @@ from typing import Dict, Any
 # 添加项目根目录到Python路径，以便正确导入模块
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from svc.auth import AutoLoginSession
+from svc.auth import AutoLoginSession, get_auto_login_session
 
 
 def get_simulation_details(simulation_id: str) -> Dict[str, Any]:
@@ -25,27 +25,7 @@ def get_simulation_details(simulation_id: str) -> Dict[str, Any]:
         模拟的详细结果
     """
     try:
-        # 使用现有的AutoLoginSession
-        session = AutoLoginSession()
-        
-        # 尝试从环境变量或secrets获取认证信息
-        username = os.environ.get("BRAIN_USERNAME") or getattr(session, 'username', None)
-        password = os.environ.get("BRAIN_PASSWORD") or getattr(session, 'password', None)
-        
-        if not username or not password:
-            # 尝试从Streamlit secrets获取
-            try:
-                import streamlit as st
-                username = st.secrets.get("brain", {}).get("username")
-                password = st.secrets.get("brain", {}).get("password")
-            except:
-                pass
-        
-        if username and password:
-            session.login_with_credentials(username, password)
-        else:
-            print("警告: 未找到认证信息，无法获取模拟详情...", file=sys.stderr)
-            return {"error": "未找到认证信息，无法获取模拟详情"}
+        session = get_auto_login_session()
         
         # 获取模拟详情
         simulation_url = f"https://api.worldquantbrain.com/simulations/{simulation_id}"

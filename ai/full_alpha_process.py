@@ -13,7 +13,7 @@ from typing import Dict, Any
 # 添加项目根目录到Python路径，以便正确导入模块
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from ai.generate_alpha_with_content import generate_alphas_with_platform_knowledge
+from ai.generate_alpha_by_ai import generate_alphas_with_platform_knowledge
 from ai.backtest_alpha import simulate_alpha
 from ai.monitor_simulation import monitor_simulation_progress
 from ai.get_alpha_details import get_alpha_details
@@ -200,29 +200,41 @@ def main():
     logging.info("开始执行完整的Alpha生成、回测、监控和结果展示流程")
     
     try:
-        # 1. 生成Alpha表达式
-        logging.info("步骤1: 生成Alpha表达式")
-        alphas = generate_alpha_expressions("sentiment analysis", 11)
-        save_process_result(alphas, "generated_alphas_full_process.json")
-        
-        # 收集所有Alpha表达式进行回测
-        if not alphas:
-            logging.error("未生成任何Alpha表达式")
-            return
+        # 使用预定义的Alpha表达式代替自动生成
+        alpha_expressions = [
+            # 1. 基于情绪差异的Alpha表达式
+            "subtract(snt21_pos_mean, snt21_neg_mean)",
             
-        # 收集所有表达式（现在alphas已经是扁平结构的列表）
-        all_expressions = []
+            # 2. 基于情绪强度和趋势的Alpha表达式
+            "ts_decay_exp_window(subtract(snt21_2pos_mean, snt21_2neg_mean), 20, factor=0.9)",
+            
+            # 3. 基于情绪稳定性的Alpha表达式
+            "divide(subtract(snt21_pos_mean, snt21_neg_mean), snt21_neut_std)",
+            
+            # 4. 基于情绪置信度的Alpha表达式
+            "multiply(subtract(snt21_pos_mean, snt21_neg_mean), subtract(snt21_pos_conf_up, snt21_pos_conf_low))",
+            
+            # 5. 基于情绪动量的Alpha表达式
+            "ts_regression(snt21_pos_mean, ts_step(1), 10, rettype=1)",
+            
+            # 6. 情绪综合因子
+            "add(scale(snt21_2pos_mean), reverse(scale(snt21_2neg_mean)))",
+            
+            # 7. 情绪动量策略
+            "ts_delta(subtract(snt21_2pos_mean, snt21_2neg_mean), 5)",
+            
+            # 8. 横截面相对情绪策略
+            "group_neutralize(subtract(snt21_2pos_mean, snt21_2neg_mean), sector)",
+            
+            # 9. 情绪极端值策略
+            "rank(subtract(snt21_2pos_mean, snt21_2neg_mean), rate=0)",
+            
+            # 10. 多维情绪复合因子
+            "zscore(add(snt21_2pos_mean, snt21_2neut_mean, reverse(snt21_2neg_mean)))"
+        ]
         
-        # 直接使用扁平结构
-        for i, alpha_item in enumerate(alphas):
-            expr_info = {
-                'expression': alpha_item['expression'],
-                'field': alpha_item['field_name'],
-                'template': alpha_item['template_name']
-            }
-            all_expressions.append(expr_info)
-        
-        logging.info(f"总共收集到 {len(all_expressions)} 个Alpha表达式进行回测")
+        logging.info(f"使用预定义的Alpha表达式，共 {len(alpha_expressions)} 个表达式")
+        save_process_result(alpha_expressions, "predefined_alphas_full_process.json")
         
         # 存储所有回测结果
         all_backtest_results = []
@@ -230,7 +242,6 @@ def main():
         all_alpha_stats = []
         
         # 对每个表达式进行回测 - 现在已经改为批量处理
-        alpha_expressions = [expr_info['expression'] for expr_info in all_expressions]
         logging.info(f"步骤2: 批量回测 {len(alpha_expressions)} 个Alpha表达式")
         
         # 批量回测Alpha表达式
@@ -251,9 +262,9 @@ def main():
         logging.info(f"Alpha表达式批量回测已提交，模拟ID: {simulation_id}")
         
         # 修改后续处理逻辑，适应批量提交的情况
-        if len(all_expressions) > 0:
+        if len(alpha_expressions) > 0:
             logging.info(f"步骤3: 监控回测进度，模拟ID: {simulation_id}")
-            monitor_result = monitor_backtest_progress(simulation_id, 60)  # 等待1分钟
+            monitor_result = monitor_backtest_progress(simulation_id, 180)  # 等待3分钟而不是1分钟
             
             # 为监控结果创建文件名
             monitor_filename = f"monitor_result_{simulation_id}_batch.json"
@@ -304,7 +315,7 @@ def main():
 
         # 保存汇总结果
         summary_results = {
-            "total_expressions": len(all_expressions),
+            "total_expressions": len(alpha_expressions),
             "successful_submissions": len(all_backtest_results),
             "monitor_results_count": len(all_monitor_results),
             "statistics_results_count": len(all_alpha_stats),
