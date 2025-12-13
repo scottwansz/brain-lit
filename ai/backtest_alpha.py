@@ -131,7 +131,7 @@ def simulate_alpha(alpha_expression: str) -> Dict[str, Any]:
         
         logging.info(f"提交的Alpha数据: {json.dumps(alpha_data, ensure_ascii=False, indent=2)}")
         
-        # 提交Alpha进行模拟
+        # 提交Alpha进行模拟 - 单个Alpha表达式不包装成数组
         response = session.post("https://api.worldquantbrain.com/simulations", json=alpha_data)
         
         logging.info(f"提交响应状态码: {response.status_code}")
@@ -169,7 +169,106 @@ def simulate_alpha(alpha_expression: str) -> Dict[str, Any]:
         return {"error": error_msg}
 
 
-def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 300) -> Dict[str, Any]:
+def simulate_multiple_alphas(alpha_expressions: list) -> Dict[str, Any]:
+    """
+    模拟多个Alpha表达式回测
+    
+    Args:
+        alpha_expressions: Alpha表达式列表，最多10个
+    
+    Returns:
+        模拟的回测结果
+    """
+    try:
+        import streamlit as st
+        username = st.secrets.get("brain", {}).get("username")
+        password = st.secrets.get("brain", {}).get("password")
+        
+        if username and password:
+            session = AutoLoginSession(username, password)
+        else:
+            logging.warning("未找到认证信息，使用模拟数据...")
+            # 返回模拟数据
+            return {
+                "sharpe": 1.25,
+                "fitness": 15.7,
+                "returns": 0.08,
+                "turnover": 0.12,
+                "margin": 0.05,
+                "status": "SUCCESS"
+            }
+        
+        # 限制最多10个Alpha表达式
+        if len(alpha_expressions) > 10:
+            logging.warning(f"Alpha表达式数量超过限制(10个)，只处理前10个")
+            alpha_expressions = alpha_expressions[:10]
+        
+        # 构造多个Alpha数据
+        alpha_data_list = []
+        for alpha_expression in alpha_expressions:
+            alpha_data = {
+                "type": "REGULAR",
+                "regular": alpha_expression,
+                "settings": {
+                    "instrumentType": "EQUITY",
+                    "region": "USA",
+                    "universe": "TOP3000",
+                    "delay": 1,
+                    "decay": 1,
+                    "neutralization": "SUBINDUSTRY",
+                    "truncation": 0.08,
+                    "pasteurization": "ON",
+                    "testPeriod": "P2Y",
+                    "unitHandling": "VERIFY",
+                    "nanHandling": "ON",
+                    "language": "FASTEXPR",
+                    "visualization": False,
+                    "maxTrade": "ON"
+                }
+            }
+            alpha_data_list.append(alpha_data)
+        
+        logging.info(f"提交的Alpha数据列表: {json.dumps(alpha_data_list, ensure_ascii=False, indent=2)}")
+        
+        # 提交Alpha进行模拟 - 多个Alpha表达式包装成数组
+        response = session.post("https://api.worldquantbrain.com/simulations", json=alpha_data_list)
+        
+        logging.info(f"提交响应状态码: {response.status_code}")
+        #logging.info(f"提交响应头部: {dict(response.headers)}")
+        if hasattr(response, 'text') and response.text:
+            logging.info(f"提交响应内容: {response.text}")
+        
+        if response.status_code == 201:
+            # 从响应头部获取模拟ID
+            location = response.headers.get('Location', '')
+            if location:
+                simulation_id = location.split('/')[-1]
+            else:
+                # 如果没有Location头部，尝试从响应内容解析
+                try:
+                    simulation_data = response.json()
+                    simulation_id = simulation_data.get('id')
+                except:
+                    simulation_id = "unknown"
+            
+            logging.info(f"模拟ID: {simulation_id}")
+            logging.info("模拟已成功提交！您可以在WorldQuant平台上查看模拟进度。")
+            return {
+                "status": "SUBMITTED",
+                "simulation_id": simulation_id,
+                "message": "Alpha表达式已成功提交进行回测",
+                "location": location
+            }
+        else:
+            return {"error": f"提交模拟失败，状态码: {response.status_code}, 响应: {response.text}"}
+            
+    except Exception as e:
+        error_msg = f"模拟Alpha时发生错误: {str(e)}"
+        logging.error(error_msg)
+        return {"error": error_msg}
+
+
+def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 600) -> Dict[str, Any]:
     """
     监控模拟进度
     

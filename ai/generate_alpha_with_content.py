@@ -101,6 +101,8 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         16. 不要使用不存在的操作符，如if操作符，应使用if_else操作符替代
         17. 注意函数参数类型：位置参数不能使用关键字形式，可选参数必须使用关键字形式。例如ts_decay_linear(x, d)中的d是位置参数，不能写成ts_decay_linear(x, d=10)；而ts_decay_linear(x, d, dense=false)中的dense是可选参数，必须写成ts_decay_linear(x, d, dense=false)
         18. 确保函数具有所需的全部参数：例如ts_rank(x, d, constant=0)至少需要x和d两个参数
+        19. 禁止使用如snt21_neg_mean[d=5]这样的非标准语法访问历史数据，必须使用ts_delay(snt21_neg_mean, 5)函数
+        20. 正确使用if_else函数，格式为if_else(condition, true_value, false_value)，例如：if_else(snt21_neg_mean > ts_delay(snt21_neg_mean, 5), -1, 1)
 
         请严格按照以下格式输出，每行一个Alpha:
         字段名||模板名||Alpha表达式||AI生成此Alpha的原因（因子在什么情况下产生买入或卖出信号）[英文翻译]||数据字段使用理由[英文翻译]||操作符使用理由[英文翻译]
@@ -124,7 +126,9 @@ def generate_alphas_with_platform_knowledge(alpha_topic: str = "sentiment analys
         11. 注意函数参数类型：位置参数不能使用关键字形式，可选参数必须使用关键字形式
         12. returns是字段不是函数，如需计算收益应使用ts_returns函数
         13. 确保函数具有所需的全部参数，如ts_rank至少需要两个位置参数
-        14. 每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
+        14. 确保if_else函数使用正确的参数格式：if_else(condition, true_value, false_value)
+        15. 禁止使用如snt21_neg_mean[d=5]这样的非标准语法访问历史数据，必须使用ts_delay(snt21_neg_mean, 5)函数
+        16. 每个理由部分都需要同时包含中文和英文翻译，格式为"中文内容[English translation]"
         """
 
         # 调用AI生成Alpha

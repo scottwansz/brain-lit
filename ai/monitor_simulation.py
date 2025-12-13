@@ -59,7 +59,8 @@ def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 300) ->
         while time.time() - start_time < max_wait_time:
             try:
                 response = session.get(simulation_url)
-                print(f"\r检查模拟状态，响应状态码: {response.status_code} 时间: {time.time()-start_time}", flush=True, end="")
+                elapsed_time = int(time.time() - start_time)
+                print(f"\r检查模拟状态，响应状态码: {response.status_code} 时间: {elapsed_time}", flush=True, end="")
                 
                 if response.status_code == 200:
                     try:
@@ -75,6 +76,27 @@ def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 300) ->
                         # 如果模拟已完成，返回结果
                         if status in ['SUCCESS', 'ERROR', 'FAILED', 'COMPLETE']:
                             print(f"\n模拟已完成，最终状态: {status}")  # 添加换行符使输出更清晰
+                            # 当状态为ERROR时，获取所有子任务的详细错误信息
+                            if status == 'ERROR' and 'children' in simulation_data and simulation_data['children']:
+                                children_details = []
+                                for i, child_id in enumerate(simulation_data['children']):
+                                    child_url = f"https://api.worldquantbrain.com/simulations/{child_id}"
+                                    print(f"获取第{i+1}个子任务的详细信息: {child_url}")
+                                    child_response = session.get(child_url)
+                                    if child_response.status_code == 200:
+                                        try:
+                                            child_data = child_response.json()
+                                            children_details.append(child_data)
+                                            print(f"子任务{i+1}详细信息: {json.dumps(child_data, ensure_ascii=False, indent=2)}")
+                                        except json.JSONDecodeError:
+                                            print(f"无法解析第{i+1}个子任务响应内容: {child_response.text}")
+                                    else:
+                                        print(f"获取第{i+1}个子任务信息失败，状态码: {child_response.status_code}")
+                                        if hasattr(child_response, 'text') and child_response.text:
+                                            print(f"响应内容: {child_response.text}")
+                                # 将所有子任务的详细信息添加到结果中
+                                simulation_data['children_details'] = children_details
+                            
                             # 尝试获取更详细的统计信息
                             if 'statistics' not in simulation_data or not simulation_data['statistics']:
                                 # 如果响应中没有详细统计信息，尝试获取完整结果

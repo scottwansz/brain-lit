@@ -92,6 +92,45 @@ def backtest_alpha_expression(alpha_expr: str) -> Dict[str, Any]:
         raise
 
 
+def backtest_alpha_expressions(alpha_exprs: list) -> None | dict[str, str] | dict[str, Any] | Any:
+    """
+    对多个Alpha表达式进行回测
+    
+    Args:
+        alpha_exprs: Alpha表达式列表
+    
+    Returns:
+        回测结果
+    """
+    logging.info(f"开始回测 {len(alpha_exprs)} 个Alpha表达式")
+    
+    # 如果只有一个表达式，使用单个提交方式
+    if len(alpha_exprs) == 1:
+        return backtest_alpha_expression(alpha_exprs[0])
+    
+    # 如果有多个表达式，分批处理，每批最多10个
+    if len(alpha_exprs) > 1:
+        # 分批处理Alpha表达式，每批最多10个
+        batch_size = 10
+        batches = [alpha_exprs[i:i + batch_size] for i in range(0, len(alpha_exprs), batch_size)]
+        
+        logging.info(f"将 {len(alpha_exprs)} 个Alpha表达式分为 {len(batches)} 批进行提交")
+        
+        results = []
+        for i, batch in enumerate(batches):
+            logging.info(f"提交第 {i+1}/{len(batches)} 批，包含 {len(batch)} 个Alpha表达式")
+            try:
+                from ai.backtest_alpha import simulate_multiple_alphas
+                result = simulate_multiple_alphas(batch)
+                results.append(result)
+                logging.info(f"第 {i+1} 批Alpha表达式提交结果: {json.dumps(result, ensure_ascii=False, indent=2)}")
+            except Exception as e:
+                logging.error(f"批量回测第 {i+1} 批Alpha表达式时出错: {str(e)}")
+                results.append({"error": str(e)})
+        
+        # 返回第一批的结果作为主要结果，其他结果可以通过日志查看
+        return results[0] if results else {"error": "没有成功提交任何批次"}
+
 def monitor_backtest_progress(simulation_id: str, max_wait_time: int = 300) -> Dict[str, Any]:
     """
     监控回测进度
@@ -163,7 +202,7 @@ def main():
     try:
         # 1. 生成Alpha表达式
         logging.info("步骤1: 生成Alpha表达式")
-        alphas = generate_alpha_expressions("sentiment analysis", 3)
+        alphas = generate_alpha_expressions("sentiment analysis", 11)
         save_process_result(alphas, "generated_alphas_full_process.json")
         
         # 收集所有Alpha表达式进行回测
@@ -190,44 +229,34 @@ def main():
         all_monitor_results = []
         all_alpha_stats = []
         
-        # 对每个表达式进行回测
-        for i, expr_info in enumerate(all_expressions):
-            alpha_expression = expr_info['expression']
-            field = expr_info['field']
-            template = expr_info['template']
+        # 对每个表达式进行回测 - 现在已经改为批量处理
+        alpha_expressions = [expr_info['expression'] for expr_info in all_expressions]
+        logging.info(f"步骤2: 批量回测 {len(alpha_expressions)} 个Alpha表达式")
+        
+        # 批量回测Alpha表达式
+        backtest_result = backtest_alpha_expressions(alpha_expressions)
+        
+        # 为每次回测创建唯一的文件名
+        backtest_filename = f"backtest_submission_result_batch.json"
+        save_process_result(backtest_result, backtest_filename)
+        
+        # 检查回测是否成功提交
+        if backtest_result.get("status") != "SUBMITTED":
+            logging.error("Alpha表达式批量回测提交失败")
             
-            logging.info(f"步骤2.{i+1}: 回测Alpha表达式 (字段: {field}, 模板: {template})")
-            logging.info(f"表达式内容: {alpha_expression}")
+        simulation_id = backtest_result.get("simulation_id")
+        if not simulation_id:
+            logging.error("未获取到模拟ID")
             
-            # 回测Alpha表达式
-            backtest_result = backtest_alpha_expression(alpha_expression)
-            
-            # 为每次回测创建唯一的文件名
-            backtest_filename = f"backtest_submission_result_{field}_{template}_{i+1}.json"
-            save_process_result(backtest_result, backtest_filename)
-            
-            # 检查回测是否成功提交
-            if backtest_result.get("status") != "SUBMITTED":
-                logging.error(f"Alpha表达式回测提交失败: {alpha_expression}")
-                continue
-                
-            simulation_id = backtest_result.get("simulation_id")
-            if not simulation_id:
-                logging.error(f"未获取到模拟ID: {alpha_expression}")
-                continue
-                
-            logging.info(f"Alpha表达式回测已提交，模拟ID: {simulation_id}")
-            
-            # 添加到结果列表
-            backtest_result['expression_info'] = expr_info
-            all_backtest_results.append(backtest_result)
-            
-            # 3. 监控回测进度
-            logging.info(f"步骤3.{i+1}: 监控回测进度，模拟ID: {simulation_id}")
+        logging.info(f"Alpha表达式批量回测已提交，模拟ID: {simulation_id}")
+        
+        # 修改后续处理逻辑，适应批量提交的情况
+        if len(all_expressions) > 0:
+            logging.info(f"步骤3: 监控回测进度，模拟ID: {simulation_id}")
             monitor_result = monitor_backtest_progress(simulation_id, 60)  # 等待1分钟
             
-            # 为每次监控创建唯一的文件名
-            monitor_filename = f"monitor_result_{simulation_id}_{i+1}.json"
+            # 为监控结果创建文件名
+            monitor_filename = f"monitor_result_{simulation_id}_batch.json"
             save_process_result(monitor_result, monitor_filename)
             
             # 检查监控结果
@@ -235,12 +264,11 @@ def main():
                 logging.warning(f"监控过程中出现错误: {monitor_result['error']}")
                 
             # 添加到监控结果列表
-            monitor_result['expression_info'] = expr_info
             monitor_result['simulation_id'] = simulation_id
             all_monitor_results.append(monitor_result)
             
             # 4. 获取Alpha统计结果
-            logging.info(f"步骤4.{i+1}: 获取Alpha统计结果")
+            logging.info("步骤4: 获取Alpha统计结果")
             
             # 从监控结果中获取Alpha ID
             alpha_id = None
@@ -252,8 +280,8 @@ def main():
                 logging.info(f"获取到Alpha ID: {alpha_id}")
                 alpha_stats = get_alpha_statistics(alpha_id)
                 
-                # 为每次统计创建唯一的文件名
-                stats_filename = f"alpha_statistics_{alpha_id}_{i+1}.json"
+                # 为统计结果创建文件名
+                stats_filename = f"alpha_statistics_{alpha_id}_batch.json"
                 save_process_result(alpha_stats, stats_filename)
                 
                 # 显示关键统计指标
@@ -269,12 +297,11 @@ def main():
                     logging.info(f"  Short Count: {stats.get('shortCount', 'N/A')}")
                 
                 # 添加到统计结果列表
-                alpha_stats['expression_info'] = expr_info
                 alpha_stats['alpha_id'] = alpha_id
                 all_alpha_stats.append(alpha_stats)
             else:
                 logging.warning("未获取到Alpha ID，无法获取详细统计结果")
-            
+
         # 保存汇总结果
         summary_results = {
             "total_expressions": len(all_expressions),
