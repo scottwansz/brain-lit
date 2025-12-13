@@ -35,17 +35,17 @@ streamlit run src/brain_lit/app.py
 
 ## 获取受限文档
 
-项目包含一个工具用于获取WorldQuant平台的受限文档:
+项目包含工具用于获取WorldQuant平台的受限文档:
 
 ```bash
-# 获取文档内容并输出到控制台
-python fetch_restricted_doc.py
+# 获取单个文档内容并保存到文件
+python ai/fetch_restricted_doc.py https://platform.worldquantbrain.com/learn/documentation/brain-api/understanding-simulation-limits simulation_limits.html
 
-# 获取文档内容并保存到文件
-python fetch_restricted_doc.py document_content.html
+# 获取多个平台内容并保存为JSON
+python ai/fetch_platform_content.py
 
-# 获取文档内容并以JSON格式输出
-python fetch_restricted_doc.py --json
+# 基于获取的内容生成Alpha表达式
+python ai/generate_alpha_with_content.py "sentiment analysis"
 ```
 
 ## 运行测试
