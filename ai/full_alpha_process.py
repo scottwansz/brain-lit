@@ -208,45 +208,45 @@ def main():
     log_file = setup_logging()
     logging.info("开始执行完整的Alpha生成、回测、监控和结果展示流程")
 
-    region = 'IND',
-    universe = 'TOP500',
-    delay = 1,
-    category = 'sentiment',
-    dataset = 'sentiment21',
+    region = 'IND'
+    universe = 'TOP500'
+    delay = 1
+    category = 'sentiment'
+    dataset = 'sentiment21'
     
     try:
         # 使用预定义的Alpha表达式代替自动生成
         alpha_expressions = [
-            "rank(-ts_zscore(snt21_2neg_mean, 5))",
-            "ts_rank(ts_decay_linear(snt21_2pos_mean, 10), 10) - ts_rank(ts_delay(snt21_2pos_mean, 5), 10)",
-            "rank(ts_std_dev(snt21_2neg_std, 20) / ts_mean(snt21_2neg_std, 20))",
-            "rank(if_else(abs(ts_delta(snt21_2neut_mean, 1)) > ts_std_dev(snt21_2neut_mean, 5), ts_delta(snt21_2neut_mean, 1), 0))",
-            "hump_decay(rank(snt21_3neg_median), p=0.1)",
-            "ts_decay_exp_window(rank(-snt21_3pos_mean), 5, factor=0.8)",
-            "if_else(snt21_4neg_max > ts_mean(snt21_4neg_max, 10) + 2 * ts_std_dev(snt21_4neg_max, 10), -1, 0)",
-            "rank(ts_max_diff(snt21_2neg_conf_up, 10))",
-            "rank(vec_range(group_extra(snt21_2pos_std, 'sector')))",
-            "ts_arg_min(snt21_3neut_min, 20)",
-            "rank(divide(snt21_2pos_mean, add(snt21_2pos_mean, snt21_2neg_mean)))",
-            "ts_rank(snt21_2neg_median, 10, constant=0) > 0.8",
-            "trade_when(rank(snt21_3pos_conf_low), snt21_3pos_conf_low < ts_mean(snt21_3pos_conf_low, 5), 0)",
-            "rank(ts_delay(snt21_4neg_mean, 2))",
-            "group_zscore(ts_std_dev(snt21_2neut_std, 5), 'industry')",
-            "jump_decay(snt21_3neg_max, 5, sensitivity=0.3, force=0.2)",
-            "rank(subtract(snt21_2pos_median, ts_mean(snt21_2pos_median, 10)))",
-            "right_tail(rank(snt21_2neg_min), minimum=0.7)",
-            "if_else(greater(snt21_3neut_mean, ts_max(snt21_3neut_mean, 10)), 1, if_else(less(snt21_3neut_mean, ts_min(snt21_3neut_mean, 10)), -1, 0))",
-            "rank(reverse(ts_skewness(snt21_2pos_std, 10)))",
-            "quantile(rank(snt21_4neg_median), driver=\"gaussian\", sigma=1.5)",
-            "ts_min_max_cps(snt21_2neut_conf_up, 10, f=2.5)",
-            "ts_scale(add(snt21_3pos_min, 0.01), 20, constant=0)",
-            "winsorize(ts_corr(snt21_2neg_std, returns, 5), std=3)",
-            "rank(ts_entropy(snt21_3neut_std, 5))",
-            "ts_regression(snt21_2pos_mean, ts_step(1), 10, rettype=0)",
-            "ts_decay_linear(multiply(snt21_4neg_mean, 0.1), 30, dense=false)",
-            "group_rank(snt21_2neut_median, 'subindustry')",
-            "rank(ts_kurtosis(snt21_3pos_std, 10))",
-            "left_tail(rank(snt21_2neg_conf_low), maximum=0.3)"
+            "rank(subtract(snt21_2pos_mean, snt21_2neut_mean)) - rank(ts_delta(snt21_2neut_mean, 5))",
+            "ts_zscore(snt21_2neg_mean, 20) * reverse(ts_returns(snt21_2neg_mean, 5))",
+            "ts_delta(subtract(snt21_2pos_mean, snt21_2neg_mean), 5) - ts_delta(subtract(snt21_2pos_mean, snt21_2neg_mean), 20)",
+            "ts_decay_linear(snt21_2neut_std, 10, dense=false) * reverse(rank(snt21_2neut_mean))",
+            "subtract(rank(ts_backfill(snt21_3pos_median, 5)), rank(ts_backfill(snt21_3neg_median, 5)))",
+            "ts_returns(subtract(snt21_2pos_conf_up, snt21_2pos_conf_low), 5) - ts_returns(subtract(snt21_2neg_conf_up, snt21_2neg_conf_low), 5)",
+            "ts_regression(snt21_2neut_mean, ts_step(1), 20, lag=0, rettype=1)",
+            "hump_decay(ts_zscore(snt21_2neg_mean, 63), p=0.05)",
+            "divide(ts_decay_exp_window(snt21_2pos_std, 10, factor=0.8), ts_decay_exp_window(snt21_2neg_std, 10, factor=0.8))",
+            "ts_rank(ts_delta(ts_backfill(snt21_3pos_mean, 3), 5), 20)",
+            "ts_delta(rank(snt21_2neut_median), 5) - ts_delta(rank(snt21_2pos_median), 5)",
+            "reverse(ts_scale(snt21_2neg_conf_up, 20, constant=0)) - ts_scale(ts_delay(snt21_2neg_conf_up, 1), 20, constant=0)",
+            "ts_rank(divide(ts_backfill(snt21_2pos_mean, 5), add(ts_backfill(snt21_2neut_mean, 5), 0.000001)), 30)",
+            "ts_decay_linear(power(ts_delta(snt21_3neg_std, 1), 2), 5, dense=false)",
+            "subtract(rank(snt21_2pos_min), rank(snt21_2neg_max))",
+            "hump(ts_av_diff(snt21_2neut_mean, 20), hump=0.01)",
+            "scale_down(multiply(subtract(snt21_2pos_mean, snt21_2neg_mean), reverse(snt21_2neut_mean)), constant=0)",
+            "ts_delta(rank(ts_backfill(snt21_3pos_median, 3)), 3) - ts_delta(rank(ts_backfill(snt21_3neg_median, 3)), 3)",
+            "ts_regression(snt21_2neg_std, ts_step(1), 10, lag=0, rettype=1) * reverse(ts_mean(snt21_2neg_std, 10))",
+            "ts_rank(ts_decay_linear(snt21_2pos_mean, 5, dense=false), 20) - ts_rank(ts_delay(snt21_2pos_mean, 5), 20)",
+            "ts_mean(subtract(snt21_2neut_conf_up, snt21_2neut_conf_low), 10)",
+            "ts_zscore(subtract(snt21_3pos_mean, snt21_3neg_mean), 63)",
+            "jump_decay(snt21_2neg_median, d=5, sensitivity=0.5, force=0.1)",
+            "if_else(ts_mean(snt21_2pos_std, 5) > ts_delay(ts_mean(snt21_2pos_std, 20), 5), ts_returns(snt21_2pos_mean, 3), reverse(ts_returns(snt21_2pos_mean, 3)))",
+            "ts_returns(divide(add(snt21_2neut_mean, 0.0001), add(snt21_2pos_mean, 0.0001)), 5)",
+            "ts_rank(reverse(snt21_3neg_mean), 10) - ts_rank(snt21_3neg_mean, 30)",
+            "ts_corr(subtract(snt21_2pos_mean, snt21_2neg_mean), ts_step(1), 10)",
+            "hump_decay(ts_delta(snt21_2neut_median, 1), p=0.02) - ts_delta(snt21_2neut_median, 5)",
+            "ts_av_diff(ts_backfill(snt21_4neg_mean, 10), 20) * reverse(ts_zscore(snt21_4neg_mean, 20))",
+            "rank(ts_decay_exp_window(snt21_2pos_mean, 5, factor=0.7)) + rank(reverse(ts_decay_exp_window(snt21_2neg_std, 5, factor=0.7)))"
         ]
         
         logging.info(f"使用预定义的Alpha表达式，共 {len(alpha_expressions)} 个表达式")
@@ -261,7 +261,7 @@ def main():
         logging.info(f"步骤2: 批量回测 {len(alpha_expressions)} 个Alpha表达式")
         
         # 批量回测Alpha表达式
-        backtest_result = backtest_alpha_expressions(alpha_expressions, region, universe, delay)
+        backtest_result = backtest_alpha_expressions(alpha_expressions, region=region, universe=universe, delay=delay)
         
         # 为每次回测创建唯一的文件名
         backtest_filename = f"backtest_submission_result_batch.json"
@@ -280,7 +280,7 @@ def main():
         # 修改后续处理逻辑，适应批量提交的情况
         if len(alpha_expressions) > 0:
             logging.info(f"步骤3: 监控回测进度，模拟ID: {simulation_id}")
-            monitor_result = monitor_backtest_progress(simulation_id, 180)  # 等待3分钟而不是1分钟
+            monitor_result = monitor_backtest_progress(simulation_id, 1800)
             
             # 为监控结果创建文件名
             monitor_filename = f"monitor_result_{simulation_id}_batch.json"
