@@ -38,7 +38,7 @@ def setup_logging(log_file: str = None):
     # 配置日志格式，包含模块名和代码行号
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_file, encoding='utf-8'),
             logging.StreamHandler(sys.stdout)

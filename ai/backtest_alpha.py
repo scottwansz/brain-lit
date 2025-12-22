@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 from svc.auth import AutoLoginSession
 
+logger = logging.getLogger(__name__)
 
 def setup_logging():
     """设置日志记录"""
@@ -25,7 +26,7 @@ def setup_logging():
     # 配置日志格式
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(os.path.join(log_dir, 'backtest_alpha.log'), encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
@@ -134,7 +135,7 @@ def simulate_alpha(
             }
         }
         
-        logging.info(f"提交的Alpha数据: {json.dumps(alpha_data, ensure_ascii=False, indent=2)}")
+        logger.debug(f"提交的Alpha数据: {json.dumps(alpha_data, ensure_ascii=False, indent=2)}")
         
         # 提交Alpha进行模拟 - 单个Alpha表达式不包装成数组
         response = session.post("https://api.worldquantbrain.com/simulations", json=alpha_data)
@@ -238,7 +239,7 @@ def simulate_multiple_alphas(
             }
             alpha_data_list.append(alpha_data)
         
-        logging.info(f"提交的Alpha数据列表: {json.dumps(alpha_data_list, ensure_ascii=False, indent=2)}")
+        logger.debug(f"提交的Alpha数据列表: {json.dumps(alpha_data_list, ensure_ascii=False, indent=2)}")
         
         # 提交Alpha进行模拟 - 多个Alpha表达式包装成数组
         response = session.post("https://api.worldquantbrain.com/simulations", json=alpha_data_list)
