@@ -78,7 +78,12 @@ def select_alpha_for_backtest(alphas: Dict[str, Any], field_name: Optional[str] 
     raise ValueError("未找到合适的Alpha表达式")
 
 
-def simulate_alpha(alpha_expression: str) -> Dict[str, Any]:
+def simulate_alpha(
+        alpha_expression: str,
+        region='IND',
+        universe='TOP500',
+        delay=1,
+) -> Dict[str, Any]:
     """
     模拟Alpha表达式回测
     
@@ -113,9 +118,9 @@ def simulate_alpha(alpha_expression: str) -> Dict[str, Any]:
             "regular": alpha_expression,
             "settings": {
                 "instrumentType": "EQUITY",
-                "region": "USA",
-                "universe": "TOP3000",
-                "delay": 1,
+                "region": region,
+                "universe": universe,
+                "delay": delay,
                 "decay": 1,
                 "neutralization": "SUBINDUSTRY",
                 "truncation": 0.08,
@@ -169,7 +174,12 @@ def simulate_alpha(alpha_expression: str) -> Dict[str, Any]:
         return {"error": error_msg}
 
 
-def simulate_multiple_alphas(alpha_expressions: list) -> Dict[str, Any]:
+def simulate_multiple_alphas(
+        alpha_expressions: list,
+        region='IND',
+        universe='TOP500',
+        delay=1,
+) -> Dict[str, Any]:
     """
     模拟多个Alpha表达式回测
     
@@ -211,9 +221,9 @@ def simulate_multiple_alphas(alpha_expressions: list) -> Dict[str, Any]:
                 "regular": alpha_expression,
                 "settings": {
                     "instrumentType": "EQUITY",
-                    "region": "USA",
-                    "universe": "TOP3000",
-                    "delay": 1,
+                    "region": region,
+                    "universe": universe,
+                    "delay": delay,
                     "decay": 1,
                     "neutralization": "SUBINDUSTRY",
                     "truncation": 0.08,
