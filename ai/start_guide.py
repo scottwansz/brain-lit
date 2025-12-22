@@ -40,9 +40,11 @@ negative_sentiment = rank(<backfill_op/>(<negative_sentiment/>, days));
 sentiment_difference = <compare_op/>(positive_sentiment, negative_sentiment);
 <time_series_operator/>(sentiment_difference, days)
 
-具体细节:
-<backfill_op/>: 由于情绪数据通常覆盖度较低，因此使用ts_backfill或to_nan进行数据回填以实现更高的覆盖度是更好的选择。 排名：此模板在回填情绪上使用Rank排名运算符，这确保了数据分布处于可控的范围内。这一步骤还从原始数据中去除了一些噪音。
-<compare_op/>: 除了原始的减法运算符，您还可以从其他比较运算符中进行选择。 通过在模板中更改数据字段、运算符和参数，您可以有效地生成多样化的可提交Alpha。
+实现细节说明:
+<backfill_op/>: 由于情绪数据通常覆盖度较低，因此使用ts_backfill或to_nan进行数据回填以实现更高的覆盖度是更好的选择。 
+rank：此模板在回填情绪上使用Rank排名运算符，这确保了数据分布处于可控的范围内。这一步骤还从原始数据中去除了一些噪音。
+<compare_op/>: 除了原始的减法运算符，您还可以从其他比较运算符中进行选择。 
+通过在模板中更改数据字段、运算符和参数，您可以有效地生成多样化的可提交Alpha。
 """
 
 start_guide = {
