@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, Tuple
 # 添加项目根目录到Python路径，以便正确导入模块
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from svc.auth import AutoLoginSession
+from svc.auth import AutoLoginSession, get_auto_login_session
 
 logger = logging.getLogger(__name__)
 
@@ -95,23 +95,7 @@ def simulate_alpha(
         模拟的回测结果
     """
     try:
-        import streamlit as st
-        username = st.secrets.get("brain", {}).get("username")
-        password = st.secrets.get("brain", {}).get("password")
-        
-        if username and password:
-            session = AutoLoginSession(username, password)
-        else:
-            logging.warning("未找到认证信息，使用模拟数据...")
-            # 返回模拟数据
-            return {
-                "sharpe": 1.25,
-                "fitness": 15.7,
-                "returns": 0.08,
-                "turnover": 0.12,
-                "margin": 0.05,
-                "status": "SUCCESS"
-            }
+        session = get_auto_login_session()
         
         # 构造Alpha数据 - 根据API错误信息调整格式
         alpha_data = {
@@ -191,23 +175,7 @@ def simulate_multiple_alphas(
         模拟的回测结果
     """
     try:
-        import streamlit as st
-        username = st.secrets.get("brain", {}).get("username")
-        password = st.secrets.get("brain", {}).get("password")
-        
-        if username and password:
-            session = AutoLoginSession(username, password)
-        else:
-            logging.warning("未找到认证信息，使用模拟数据...")
-            # 返回模拟数据
-            return {
-                "sharpe": 1.25,
-                "fitness": 15.7,
-                "returns": 0.08,
-                "turnover": 0.12,
-                "margin": 0.05,
-                "status": "SUCCESS"
-            }
+        session = get_auto_login_session()
         
         # 限制最多10个Alpha表达式
         if len(alpha_expressions) > 10:
@@ -292,26 +260,7 @@ def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 600) ->
     """
     try:
         # 使用现有的AutoLoginSession
-        session = AutoLoginSession()
-        
-        # 尝试从环境变量或secrets获取认证信息
-        username = os.environ.get("BRAIN_USERNAME") or getattr(session, 'username', None)
-        password = os.environ.get("BRAIN_PASSWORD") or getattr(session, 'password', None)
-        
-        if not username or not password:
-            # 尝试从Streamlit secrets获取
-            try:
-                import streamlit as st
-                username = st.secrets.get("brain", {}).get("username")
-                password = st.secrets.get("brain", {}).get("password")
-            except:
-                pass
-        
-        if username and password:
-            session.login_with_credentials(username, password)
-        else:
-            logging.warning("未找到认证信息，无法监控模拟进度...")
-            return {"error": "未找到认证信息，无法监控模拟进度"}
+        session = get_auto_login_session()
         
         # 监控模拟进度
         start_time = time.time()

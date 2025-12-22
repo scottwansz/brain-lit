@@ -12,7 +12,7 @@ from typing import Dict, Any
 # 添加项目根目录到Python路径，以便正确导入模块
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from svc.auth import AutoLoginSession
+from svc.auth import AutoLoginSession, get_auto_login_session
 
 
 def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 300) -> Dict[str, Any]:
@@ -28,26 +28,7 @@ def monitor_simulation_progress(simulation_id: str, max_wait_time: int = 300) ->
     """
     try:
         # 使用现有的AutoLoginSession
-        session = AutoLoginSession()
-        
-        # 尝试从环境变量或secrets获取认证信息
-        username = os.environ.get("BRAIN_USERNAME") or getattr(session, 'username', None)
-        password = os.environ.get("BRAIN_PASSWORD") or getattr(session, 'password', None)
-        
-        if not username or not password:
-            # 尝试从Streamlit secrets获取
-            try:
-                import streamlit as st
-                username = st.secrets.get("brain", {}).get("username")
-                password = st.secrets.get("brain", {}).get("password")
-            except:
-                pass
-        
-        if username and password:
-            session.login_with_credentials(username, password)
-        else:
-            print("警告: 未找到认证信息，无法监控模拟进度...", file=sys.stderr)
-            return {"error": "未找到认证信息，无法监控模拟进度"}
+        session = get_auto_login_session()
         
         # 监控模拟进度
         start_time = time.time()
