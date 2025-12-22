@@ -9,7 +9,7 @@ import os
 from typing import Dict, Any, List
 
 # 添加项目根目录到Python路径，以便正确导入模块
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 from ai.get_simulation_details import get_simulation_details
 
@@ -56,7 +56,7 @@ def save_children_details(simulation_id: str, children_details: List[Dict[str, A
         simulation_id: 模拟ID
         children_details: 子任务详细信息列表
     """
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
     output_path = os.path.join(output_dir, f"all_children_details_{simulation_id}.json")
     os.makedirs(output_dir, exist_ok=True)
     

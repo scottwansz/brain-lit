@@ -17,6 +17,7 @@ from ai.generate_alpha_by_ai import generate_alphas
 from ai.backtest_alpha import simulate_alpha, simulate_multiple_alphas
 from ai.monitor_simulation import monitor_simulation_progress
 from ai.get_alpha_details import get_alpha_details
+from ai.get_children_details import get_all_children_details
 
 
 def setup_logging(log_file: str = None):
@@ -102,7 +103,7 @@ def backtest_alpha_expressions(
         region='IND',
         universe='TOP500',
         delay=1,
-) -> None | dict[str, str] | dict[str, Any] | Any:
+) -> list:
     """
     对多个Alpha表达式进行回测
     
@@ -110,13 +111,14 @@ def backtest_alpha_expressions(
         alpha_exprs: Alpha表达式列表
     
     Returns:
-        回测结果
+        所有批次的回测结果
     """
     logging.info(f"开始回测 {len(alpha_exprs)} 个Alpha表达式")
     
     # 如果只有一个表达式，使用单个提交方式
     if len(alpha_exprs) == 1:
-        return backtest_alpha_expression(alpha_exprs[0], region, universe, delay)
+        result = backtest_alpha_expression(alpha_exprs[0], region, universe, delay)
+        return [result]
     
     # 如果有多个表达式，分批处理，每批最多10个
     if len(alpha_exprs) > 1:
@@ -137,8 +139,8 @@ def backtest_alpha_expressions(
                 logging.error(f"批量回测第 {i+1} 批Alpha表达式时出错: {str(e)}")
                 results.append({"error": str(e)})
         
-        # 返回第一批的结果作为主要结果，其他结果可以通过日志查看
-        return results[0] if results else {"error": "没有成功提交任何批次"}
+        # 返回所有批次的结果
+        return results
 
 def monitor_backtest_progress(simulation_id: str, max_wait_time: int = 300) -> Dict[str, Any]:
     """
@@ -261,81 +263,117 @@ def main():
         logging.info(f"步骤2: 批量回测 {len(alpha_expressions)} 个Alpha表达式")
         
         # 批量回测Alpha表达式
-        backtest_result = backtest_alpha_expressions(alpha_expressions, region=region, universe=universe, delay=delay)
+        backtest_results = backtest_alpha_expressions(alpha_expressions, region=region, universe=universe, delay=delay)
         
         # 为每次回测创建唯一的文件名
         backtest_filename = f"backtest_submission_result_batch.json"
-        save_process_result(backtest_result, backtest_filename)
+        save_process_result(backtest_results, backtest_filename)
         
         # 检查回测是否成功提交
-        if backtest_result.get("status") != "SUBMITTED":
-            logging.error("Alpha表达式批量回测提交失败")
-            
-        simulation_id = backtest_result.get("simulation_id")
-        if not simulation_id:
-            logging.error("未获取到模拟ID")
-            
-        logging.info(f"Alpha表达式批量回测已提交，模拟ID: {simulation_id}")
+        successful_submissions = []
+        for i, backtest_result in enumerate(backtest_results):
+            if not isinstance(backtest_result, dict):
+                logging.error(f"第{i+1}批回测结果不是字典类型: {backtest_result}")
+                continue
+                
+            if backtest_result.get("status") != "SUBMITTED":
+                logging.error(f"第{i+1}批Alpha表达式批量回测提交失败")
+                continue
+                
+            simulation_id = backtest_result.get("simulation_id")
+            if not simulation_id:
+                logging.error(f"第{i+1}批未获取到模拟ID")
+                continue
+                
+            logging.info(f"第{i+1}批Alpha表达式批量回测已提交，模拟ID: {simulation_id}")
+            successful_submissions.append({
+                "index": i+1,
+                "simulation_id": simulation_id,
+                "result": backtest_result
+            })
         
         # 修改后续处理逻辑，适应批量提交的情况
-        if len(alpha_expressions) > 0:
-            logging.info(f"步骤3: 监控回测进度，模拟ID: {simulation_id}")
-            monitor_result = monitor_backtest_progress(simulation_id, 1800)
+        if len(successful_submissions) > 0:
+            logging.info(f"步骤3: 监控所有 {len(successful_submissions)} 批回测进度")
             
-            # 为监控结果创建文件名
-            monitor_filename = f"monitor_result_{simulation_id}_batch.json"
-            save_process_result(monitor_result, monitor_filename)
-            
-            # 检查监控结果
-            if "error" in monitor_result:
-                logging.warning(f"监控过程中出现错误: {monitor_result['error']}")
+            for submission in successful_submissions:
+                index = submission["index"]
+                simulation_id = submission["simulation_id"]
                 
-            # 添加到监控结果列表
-            monitor_result['simulation_id'] = simulation_id
-            all_monitor_results.append(monitor_result)
-            
-            # 4. 获取Alpha统计结果
-            logging.info("步骤4: 获取Alpha统计结果")
-            
-            # 从监控结果中获取Alpha ID
-            alpha_id = None
-            if "alpha" in monitor_result:
-                alpha_id = monitor_result["alpha"]
+                logging.info(f"监控第 {index} 批回测进度，模拟ID: {simulation_id}")
+                monitor_result = monitor_backtest_progress(simulation_id, 1800)
                 
-            # 如果我们有Alpha ID，获取详细统计结果
-            if alpha_id:
-                logging.info(f"获取到Alpha ID: {alpha_id}")
-                alpha_stats = get_alpha_statistics(alpha_id)
+                # 为监控结果创建文件名
+                monitor_filename = f"monitor_result_{simulation_id}_batch.json"
+                save_process_result(monitor_result, monitor_filename)
                 
-                # 为统计结果创建文件名
-                stats_filename = f"alpha_statistics_{alpha_id}_batch.json"
-                save_process_result(alpha_stats, stats_filename)
+                # 检查监控结果
+                if "error" in monitor_result:
+                    logging.warning(f"监控第 {index} 批过程中出现错误: {monitor_result['error']}")
+                    
+                # 添加到监控结果列表
+                monitor_result['simulation_id'] = simulation_id
+                monitor_result['batch_index'] = index
+                all_monitor_results.append(monitor_result)
                 
-                # 显示关键统计指标
-                if "is" in alpha_stats:
-                    stats = alpha_stats["is"]
-                    logging.info("关键统计指标:")
-                    logging.info(f"  Sharpe Ratio: {stats.get('sharpe', 'N/A')}")
-                    logging.info(f"  Fitness: {stats.get('fitness', 'N/A')}")
-                    logging.info(f"  Returns: {stats.get('returns', 'N/A')}")
-                    logging.info(f"  Turnover: {stats.get('turnover', 'N/A')}")
-                    logging.info(f"  Margin: {stats.get('margin', 'N/A')}")
-                    logging.info(f"  Long Count: {stats.get('longCount', 'N/A')}")
-                    logging.info(f"  Short Count: {stats.get('shortCount', 'N/A')}")
+                # 4. 获取Alpha统计结果
+                logging.info(f"步骤4: 获取第 {index} 批Alpha统计结果")
                 
-                # 添加到统计结果列表
-                alpha_stats['alpha_id'] = alpha_id
-                all_alpha_stats.append(alpha_stats)
-            else:
-                logging.warning("未获取到Alpha ID，无法获取详细统计结果")
+                # 检查是否有children字段，这包含了所有子任务的ID
+                if "children" in monitor_result and monitor_result["children"]:
+                    children_ids = monitor_result["children"]
+                    logging.info(f"第 {index} 批包含 {len(children_ids)} 个Alpha表达式的回测结果")
+                    
+                    # 获取所有子任务的详细信息
+                    children_details = get_all_children_details(simulation_id)
+                    if children_details:
+                        children_filename = f"children_details_{simulation_id}_batch.json"
+                        save_process_result(children_details, children_filename)
+                        
+                        # 从子任务详情中提取Alpha ID并获取统计信息
+                        for j, child_detail in enumerate(children_details):
+                            alpha_id = child_detail.get("alpha")
+                            if alpha_id:
+                                logging.info(f"获取到第 {index} 批第 {j+1} 个Alpha的ID: {alpha_id}")
+                                alpha_stats = get_alpha_statistics(alpha_id)
+                                
+                                # 为统计结果创建文件名
+                                stats_filename = f"alpha_statistics_{alpha_id}_batch.json"
+                                save_process_result(alpha_stats, stats_filename)
+                                
+                                # 显示关键统计指标
+                                if "is" in alpha_stats:
+                                    stats = alpha_stats["is"]
+                                    logging.info(f"第 {index} 批第 {j+1} 个Alpha的关键统计指标:")
+                                    logging.info(f"  Sharpe Ratio: {stats.get('sharpe', 'N/A')}")
+                                    logging.info(f"  Fitness: {stats.get('fitness', 'N/A')}")
+                                    logging.info(f"  Returns: {stats.get('returns', 'N/A')}")
+                                    logging.info(f"  Turnover: {stats.get('turnover', 'N/A')}")
+                                    logging.info(f"  Margin: {stats.get('margin', 'N/A')}")
+                                    logging.info(f"  Long Count: {stats.get('longCount', 'N/A')}")
+                                    logging.info(f"  Short Count: {stats.get('shortCount', 'N/A')}")
+                                
+                                # 添加到统计结果列表
+                                alpha_stats['alpha_id'] = alpha_id
+                                alpha_stats['batch_index'] = index
+                                alpha_stats['child_index'] = j+1
+                                all_alpha_stats.append(alpha_stats)
+                            else:
+                                logging.warning(f"第 {index} 批第 {j+1} 个子任务未获取到Alpha ID")
+                                logging.debug(f"子任务详情: {json.dumps(child_detail, ensure_ascii=False, indent=2)}")
+                    else:
+                        logging.warning(f"未能获取第 {index} 批子任务的详细信息")
+                else:
+                    logging.warning(f"第 {index} 批监控结果中未找到子任务信息")
 
         # 保存汇总结果
         summary_results = {
             "total_expressions": len(alpha_expressions),
-            "successful_submissions": len(all_backtest_results),
+            "total_batches": len(backtest_results),
+            "successful_submissions": len(successful_submissions),
             "monitor_results_count": len(all_monitor_results),
             "statistics_results_count": len(all_alpha_stats),
-            "backtest_results": all_backtest_results,
+            "backtest_results": backtest_results,
             "monitor_results": all_monitor_results,
             "alpha_statistics": all_alpha_stats
         }
