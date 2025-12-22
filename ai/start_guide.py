@@ -43,7 +43,7 @@ sentiment_difference = <compare_op/>(positive_sentiment, negative_sentiment);
 
 实现细节说明:
 <backfill_op/>: 由于情绪数据通常覆盖度较低，因此使用ts_backfill或to_nan进行数据回填以实现更高的覆盖度是更好的选择。 
-rank：此模板在回填情绪上使用Rank排名运算符，这确保了数据分布处于可控的范围内。这一步骤还从原始数据中去除了一些噪音。
+rank：此模板在回填情绪上使用Rank排名运算符，这确保了数据分布处于可控的范围内，这一步骤还从原始数据中去除了一些噪音。
 <compare_op/>: 除了原始的减法运算符，您还可以从其他比较运算符中进行选择。 
 """
 
