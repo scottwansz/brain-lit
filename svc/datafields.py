@@ -43,7 +43,7 @@ def get_fields_in_page(dataset_id='other699', delay=0, instrument_type='EQUITY',
     
     # 解析响应数据并构造以id为key，type为value的字典
     res_json = response.json()
-    return {item['id']: {'type': item['type'], 'coverage': item['coverage']} for item in res_json.get('results', [])}
+    return {item['id']: {'type': item['type'], 'coverage': item['coverage'], 'description': item['description']} for item in res_json.get('results', [])}
 
 
 def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600'):

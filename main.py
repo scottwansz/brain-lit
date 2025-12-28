@@ -1,0 +1,126 @@
+from gen.sentiment_gen import SentimentAlphaGeneratorV5
+from svc.datafields import get_single_set_fields
+
+
+# 主程序
+def main():
+    """主程序：生成所有Alpha表达式"""
+    print("=" * 80)
+    print("情感数据Alpha表达式生成器 V5")
+    print("=" * 80)
+
+    # 使用示例数据（替换为您的实际数据）
+    data_fields = get_single_set_fields(
+        region="IND",
+        universe="TOP500",
+        instrument_type="EQUITY",
+        delay=1,
+        dataset="sentiment23",
+    )
+
+    # 创建生成器
+    print("\n初始化生成器...")
+    generator = SentimentAlphaGeneratorV5(field_metadata=data_fields)
+
+    # 导出所有策略
+    print("\n生成所有Alpha表达式...")
+    print("=" * 80)
+
+    all_strategies = generator.export_all_strategies(
+        output_format="json",
+        include_full_pipeline=True
+    )
+
+    # 保存到文件
+    with open('data/all_sentiment_alphas.json', 'w', encoding='utf-8') as f:
+        f.write(all_strategies)
+
+    print(f"\n已生成所有Alpha表达式，保存到 all_sentiment_alphas.json")
+
+    # # 同时生成Python版本
+    # python_strategies = generator.export_all_strategies(
+    #     output_format="python",
+    #     include_full_pipeline=True
+    # )
+    #
+    # with open('data/all_sentiment_alphas.py', 'w', encoding='utf-8') as f:
+    #     f.write(python_strategies)
+    #
+    # print(f"Python版本已保存到 all_sentiment_alphas.py")
+
+    # 显示统计信息
+    print("\n" + "=" * 80)
+    print("生成统计信息:")
+    print("=" * 80)
+
+    # 读取生成的JSON获取统计信息
+    import json
+    data = json.loads(all_strategies)
+
+    print(f"总字段数: {data['meta']['total_fields']}")
+    print(f"完整组数: {data['meta']['complete_groups']}")
+    print(f"总策略数: {data['meta']['strategy_count']}")
+
+    print(f"\n可用统计类型: {', '.join(data['meta']['available_stat_types'])}")
+    print(f"可用窗口: {', '.join(data['meta']['available_windows'])}")
+
+    # 按组显示策略数量
+    print(f"\n各组策略分布:")
+    strategy_counts = {}
+    for group_key, strategies in data["strategies"].items():
+        count = len(strategies)
+        strategy_counts[group_key] = count
+
+    # 按策略数量排序
+    sorted_counts = sorted(strategy_counts.items(), key=lambda x: x[1], reverse=True)
+
+    for group_key, count in sorted_counts[:10]:  # 显示前10个
+        print(f"  {group_key}: {count} 个策略")
+
+    if len(sorted_counts) > 10:
+        print(f"  ... 还有 {len(sorted_counts) - 10} 个组")
+
+    # 显示一些示例
+    print("\n" + "=" * 80)
+    print("示例策略:")
+    print("=" * 80)
+
+    # 获取第一个组的第一个策略
+    first_group = list(data["strategies"].keys())[0]
+    first_strategy_name = list(data["strategies"][first_group].keys())[0]
+    first_strategy = data["strategies"][first_group][first_strategy_name]
+
+    print(f"组: {first_group}")
+    print(f"策略: {first_strategy_name}")
+    if "description" in first_strategy:
+        print(f"描述: {first_strategy['description']}")
+    print(f"表达式:\n{first_strategy['expression']}")
+
+    # 显示一个行业中性化的示例
+    print("\n" + "=" * 80)
+    print("行业中性化示例:")
+    print("=" * 80)
+
+    # 查找行业中性化的策略
+    industry_neutralized_found = False
+    for group_key, strategies in data["strategies"].items():
+        for strategy_name, strategy_data in strategies.items():
+            if "industry_neutralized" in strategy_name:
+                print(f"策略: {strategy_name}")
+                print(f"表达式:\n{strategy_data['expression']}")
+                industry_neutralized_found = True
+                break
+        if industry_neutralized_found:
+            break
+
+    if not industry_neutralized_found:
+        print("未找到行业中性化策略示例")
+
+    print("\n" + "=" * 80)
+    print("生成完成！")
+    print("=" * 80)
+
+
+# 运行主程序
+if __name__ == "__main__":
+    main()
