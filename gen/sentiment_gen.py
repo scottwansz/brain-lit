@@ -2,6 +2,14 @@ import json
 from datetime import datetime
 from typing import Dict, Tuple, List, Union
 
+# 导入alpha_builder模块用于覆盖率处理
+try:
+    from svc.alpha_builder import process_all_fields
+    ALPHA_BUILDER_AVAILABLE = True
+except ImportError:
+    ALPHA_BUILDER_AVAILABLE = False
+    process_all_fields = None
+
 
 class SentimentAlphaGeneratorV5:
     """
@@ -17,6 +25,13 @@ class SentimentAlphaGeneratorV5:
             field_metadata: 字段元数据
         """
         self.field_metadata = field_metadata or {}
+        
+        # 应用覆盖率处理逻辑，如果alpha_builder模块可用
+        if ALPHA_BUILDER_AVAILABLE and process_all_fields:
+            self.processed_field_metadata = process_all_fields(self.field_metadata)
+        else:
+            self.processed_field_metadata = self.field_metadata
+            
         self.grouped_data, self.group_stats = self._group_fields()
         self._initialize_operators()
         self._initialize_strategy_templates()
@@ -433,7 +448,13 @@ class SentimentAlphaGeneratorV5:
                     actual_sentiment = params[param_name]
 
             if actual_sentiment in group_fields:
-                expression = expression.replace(f"{{{sentiment}}}", group_fields[actual_sentiment])
+                original_field = group_fields[actual_sentiment]
+                # 使用处理后的字段（如果可用）
+                if ALPHA_BUILDER_AVAILABLE and original_field in self.processed_field_metadata:
+                    processed_field = self.processed_field_metadata[original_field]
+                    expression = expression.replace(f"{{{sentiment}}}", processed_field)
+                else:
+                    expression = expression.replace(f"{{{sentiment}}}", original_field)
             elif '_' in actual_sentiment:
                 # 处理组合字段（如pos_mean）
                 sent_type, stat = actual_sentiment.split('_')
@@ -442,7 +463,13 @@ class SentimentAlphaGeneratorV5:
                 for gk, gdata in self.grouped_data.items():
                     ginfo = gdata["info"]
                     if ginfo["stat_type"] == stat and sent_type in gdata["fields"]:
-                        expression = expression.replace(f"{{{sentiment}}}", gdata["fields"][sent_type])
+                        original_field = gdata["fields"][sent_type]
+                        # 使用处理后的字段（如果可用）
+                        if ALPHA_BUILDER_AVAILABLE and original_field in self.processed_field_metadata:
+                            processed_field = self.processed_field_metadata[original_field]
+                            expression = expression.replace(f"{{{sentiment}}}", processed_field)
+                        else:
+                            expression = expression.replace(f"{{{sentiment}}}", original_field)
                         found = True
                         break
                 if not found:
