@@ -517,7 +517,7 @@ class SentimentAlphaGeneratorV5:
 
                     # 如果需要，生成中性化版本
                     if include_neutralized:
-                        for group_type in ["industry", "subindustry", "sector"]:
+                        for group_type in ["subindustry"]:
                             neutralized_expr = self.generate_neutralized_strategy(expr, group_type)
                             strategies[f"{strategy_name}_{group_type}_neutralized"] = neutralized_expr
 
@@ -627,7 +627,7 @@ class SentimentAlphaGeneratorV5:
                             }
 
                             # 生成中性化版本
-                            for group_type in ["industry", "subindustry", "sector"]:
+                            for group_type in ["subindustry"]:
                                 neutralized_expr = self.generate_neutralized_strategy(multi_expr, group_type)
                                 multi_window_strategies[group_key][
                                     f"multi_window_{strategy_name}_{group_type}_neutralized"] = neutralized_expr
@@ -668,18 +668,18 @@ class SentimentAlphaGeneratorV5:
                         "postprocessing": []
                     },
                     "advanced": {
-                        "description": "高级处理: 多步预处理 + 行业中性化",
+                        "description": "高级处理: 多步预处理 + 子行业中性化",
                         "preprocessing": ["ts_decay_linear", "winsorize"],
                         "risk_control": True,
                         "normalization": True,
-                        "postprocessing": ["industry_neutralized", "scale"]
+                        "postprocessing": ["subindustry_neutralized", "scale"]
                     },
                     "conservative": {
-                        "description": "保守处理: 严格风险控制 + 多行业中性化",
+                        "description": "保守处理: 严格风险控制 + 子行业中性化",
                         "preprocessing": ["hump_decay", "nan_out"],
                         "risk_control": True,
                         "normalization": True,
-                        "postprocessing": ["industry_neutralized", "subindustry_neutralized", "trade_when"]
+                        "postprocessing": ["subindustry_neutralized", "trade_when"]
                     }
                 }
 
@@ -711,9 +711,7 @@ class SentimentAlphaGeneratorV5:
                         # 后处理
                         if pipe_config["postprocessing"]:
                             for step in pipe_config["postprocessing"]:
-                                if step == "industry_neutralized":
-                                    full_expr = self.generate_neutralized_strategy(full_expr, "industry")
-                                elif step == "subindustry_neutralized":
+                                if step == "subindustry_neutralized":
                                     full_expr = self.generate_neutralized_strategy(full_expr, "subindustry")
                                 elif step == "scale":
                                     full_expr = f"scale({full_expr}, scale=1, longscale=1.2, shortscale=0.8)"
