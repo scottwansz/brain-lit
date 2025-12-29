@@ -60,6 +60,10 @@ def main():
     print(f"总字段数: {data['meta']['total_fields']}")
     print(f"完整组数: {data['meta']['complete_groups']}")
     print(f"总策略数: {data['meta']['strategy_count']}")
+    
+    # 计算总的Alpha表达式数量
+    total_expressions = sum(len(strategy_data['alpha_expressions']) for strategy_data in data['strategies'].values())
+    print(f"总Alpha表达式数: {total_expressions}")
 
     print(f"\n可用统计类型: {', '.join(data['meta']['available_stat_types'])}")
     print(f"可用窗口: {', '.join(data['meta']['available_windows'])}")
