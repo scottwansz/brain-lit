@@ -64,37 +64,43 @@ def main():
     print(f"\n可用统计类型: {', '.join(data['meta']['available_stat_types'])}")
     print(f"可用窗口: {', '.join(data['meta']['available_windows'])}")
 
-    # 按组显示策略数量
-    print(f"\n各组策略分布:")
+    # 按策略显示分组数量
+    print(f"\n各策略分组分布:")
     strategy_counts = {}
-    for group_key, strategies in data["strategies"].items():
-        count = len(strategies)
-        strategy_counts[group_key] = count
+    for strategy_name, strategy_data in data["strategies"].items():
+        count = len(strategy_data["alpha_expressions"])
+        strategy_counts[strategy_name] = count
 
-    # 按策略数量排序
+    # 按分组数量排序
     sorted_counts = sorted(strategy_counts.items(), key=lambda x: x[1], reverse=True)
 
-    for group_key, count in sorted_counts[:10]:  # 显示前10个
-        print(f"  {group_key}: {count} 个策略")
+    for strategy_name, count in sorted_counts[:10]:  # 显示前10个
+        print(f"  {strategy_name}: {count} 个分组")
 
     if len(sorted_counts) > 10:
-        print(f"  ... 还有 {len(sorted_counts) - 10} 个组")
+        print(f"  ... 还有 {len(sorted_counts) - 10} 个策略")
 
     # 显示一些示例
     print("\n" + "=" * 80)
     print("示例策略:")
     print("=" * 80)
 
-    # 获取第一个组的第一个策略
-    first_group = list(data["strategies"].keys())[0]
-    first_strategy_name = list(data["strategies"][first_group].keys())[0]
-    first_strategy = data["strategies"][first_group][first_strategy_name]
+    # 获取第一个策略
+    first_strategy_name = list(data["strategies"].keys())[0]
+    first_strategy = data["strategies"][first_strategy_name]
 
-    print(f"组: {first_group}")
     print(f"策略: {first_strategy_name}")
+    print(f"类型: {first_strategy['type']}")
     if "description" in first_strategy:
         print(f"描述: {first_strategy['description']}")
-    print(f"表达式:\n{first_strategy['expression']}")
+    if "base_strategy" in first_strategy:
+        print(f"基础策略: {first_strategy['base_strategy']}")
+    print(f"分组数量: {len(first_strategy['alpha_expressions'])}")
+    
+    # 显示第一个策略的第一个表达式
+    first_group_key = list(first_strategy['alpha_expressions'].keys())[0]
+    first_expression = first_strategy['alpha_expressions'][first_group_key]
+    print(f"示例表达式 ({first_group_key}):\n{first_expression}")
 
     # 显示一个行业中性化的示例
     print("\n" + "=" * 80)
@@ -103,14 +109,20 @@ def main():
 
     # 查找行业中性化的策略
     industry_neutralized_found = False
-    for group_key, strategies in data["strategies"].items():
-        for strategy_name, strategy_data in strategies.items():
-            if "industry_neutralized" in strategy_name:
-                print(f"策略: {strategy_name}")
-                print(f"表达式:\n{strategy_data['expression']}")
-                industry_neutralized_found = True
-                break
-        if industry_neutralized_found:
+    for strategy_name, strategy_data in data["strategies"].items():
+        if "industry_neutralized" in strategy_name:
+            print(f"策略: {strategy_name}")
+            print(f"类型: {strategy_data['type']}")
+            if "description" in strategy_data:
+                print(f"描述: {strategy_data['description']}")
+            if "base_strategy" in strategy_data:
+                print(f"基础策略: {strategy_data['base_strategy']}")
+            
+            # 显示一个表达式示例
+            first_group_key = list(strategy_data['alpha_expressions'].keys())[0]
+            first_expression = strategy_data['alpha_expressions'][first_group_key]
+            print(f"示例表达式 ({first_group_key}):\n{first_expression}")
+            industry_neutralized_found = True
             break
 
     if not industry_neutralized_found:

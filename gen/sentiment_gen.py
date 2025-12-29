@@ -760,7 +760,6 @@ class SentimentAlphaGeneratorV5:
                 "complete_groups": self.group_stats["groups_complete"],
                 "available_stat_types": list(self._get_available_stat_types()),
                 "available_windows": list(self._get_available_windows()),
-                "strategy_count": 0
             },
             "strategies": {},
             "categories": self.strategy_categories,
@@ -777,44 +776,53 @@ class SentimentAlphaGeneratorV5:
             print("生成完整管道策略...")
             full_strategies = self.generate_full_pipeline_strategies()
 
-            # 合并策略
+            # 按策略重组数据 - 新的数据结构
+            # 新结构: {
+            #   "strategy_name": {
+            #     "description": "...",
+            #     "base_strategy": "...",
+            #     "type": "...",
+            #     "alpha_expressions": {
+            #       "group_key1": "expression1",
+            #       "group_key2": "expression2"
+            #     }
+            #   }
+            # }
+            
+            # 处理基础策略
             for group_key, strategies in base_strategies.items():
-                if group_key not in all_data["strategies"]:
-                    all_data["strategies"][group_key] = {}
-
                 for strategy_name, expr in strategies.items():
-                    all_data["strategies"][group_key][strategy_name] = {
-                        "expression": expr,
-                        "type": "base"
-                    }
+                    if strategy_name not in all_data["strategies"]:
+                        all_data["strategies"][strategy_name] = {
+                            "type": "base",
+                            "alpha_expressions": {}
+                        }
+                    all_data["strategies"][strategy_name]["alpha_expressions"][group_key] = expr
 
+            # 处理完整管道策略
             for group_key, strategies in full_strategies.items():
-                if group_key not in all_data["strategies"]:
-                    all_data["strategies"][group_key] = {}
-
                 for strategy_name, strategy_data in strategies.items():
-                    all_data["strategies"][group_key][strategy_name] = {
-                        "expression": strategy_data["expression"],
-                        "description": strategy_data.get("description", ""),
-                        "base_strategy": strategy_data.get("base_strategy", ""),
-                        "type": "full_pipeline"
-                    }
+                    if strategy_name not in all_data["strategies"]:
+                        all_data["strategies"][strategy_name] = {
+                            "description": strategy_data.get("description", ""),
+                            "base_strategy": strategy_data.get("base_strategy", ""),
+                            "type": "full_pipeline",
+                            "alpha_expressions": {}
+                        }
+                    all_data["strategies"][strategy_name]["alpha_expressions"][group_key] = strategy_data["expression"]
         else:
-            # 只包含基础策略
+            # 只包含基础策略 - 也按新结构组织
             for group_key, strategies in base_strategies.items():
-                all_data["strategies"][group_key] = {}
                 for strategy_name, expr in strategies.items():
-                    all_data["strategies"][group_key][strategy_name] = {
-                        "expression": expr,
-                        "type": "base"
-                    }
+                    if strategy_name not in all_data["strategies"]:
+                        all_data["strategies"][strategy_name] = {
+                            "type": "base",
+                            "alpha_expressions": {}
+                        }
+                    all_data["strategies"][strategy_name]["alpha_expressions"][group_key] = expr
 
         # 计算策略总数
-        strategy_count = 0
-        for group_strategies in all_data["strategies"].values():
-            strategy_count += len(group_strategies)
-
-        all_data["meta"]["strategy_count"] = strategy_count
+        all_data["meta"]["strategy_count"] = len(all_data["strategies"])
 
         # 按输出格式处理
         if output_format == "json":
