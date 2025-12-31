@@ -55,3 +55,11 @@ AND phase = 1 AND simulated = 1 AND delay = 1 and template='ts_basic';
 
 select * from CHN_alphas
 where JSON_CONTAINS(fail_reasons,'[{"name": "D0_SUBMISSION", "limit": 30, "value": 30, "result": "FAIL"}]') ;
+
+SELECT * FROM ind_alphas
+WHERE JSON_SEARCH(fail_reasons, 'one', 'CONCENTRATED_WEIGHT', NULL, '$[*].name') IS NOT NULL
+  AND JSON_LENGTH(fail_reasons) = 1 AND passed=-1;
+
+update ind_alphas set phase=2, simulated=0
+WHERE JSON_SEARCH(fail_reasons, 'one', 'CONCENTRATED_WEIGHT', NULL, '$[*].name') IS NOT NULL
+  AND JSON_LENGTH(fail_reasons) = 1 AND passed=-1;
