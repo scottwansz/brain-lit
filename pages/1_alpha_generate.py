@@ -256,7 +256,7 @@ with col2:
     decay = st.number_input("衰减天数", min_value=1, max_value=30, value=6)
 
 with col3:
-    truncation = st.slider("截断百分比", 0.01, 0.1, 0.08, 0.01)
+    truncation = st.slider("截断百分比", 0.01, 0.1, 0.01, 0.01)
 
 with col_phase:
     phase = st.number_input("新Alpha的Phase", min_value=1, max_value=9, value=1, step=1)

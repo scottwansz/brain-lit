@@ -46,12 +46,12 @@ WITH ranked_alphas AS (
                PARTITION BY name
                ORDER BY abs(sharp*fitness) DESC
            ) AS rn
-    FROM :'USA_alphas'
-    WHERE phase = 1 AND simulated = 1 AND delay = 1
+    FROM :ind_alphas
+    WHERE phase = 1 AND simulated = 1 AND delay = 1 and template='ts_basic'
 )
-DELETE FROM :'USA_alphas'
+DELETE FROM :ind_alphas
 WHERE (id) NOT IN (SELECT id FROM ranked_alphas WHERE rn = 1)
-AND phase = 1 AND simulated = 1 AND delay = 1;
+AND phase = 1 AND simulated = 1 AND delay = 1 and template='ts_basic';
 
 select * from CHN_alphas
 where JSON_CONTAINS(fail_reasons,'[{"name": "D0_SUBMISSION", "limit": 30, "value": 30, "result": "FAIL"}]') ;

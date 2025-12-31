@@ -44,7 +44,7 @@ class TestMain(unittest.TestCase):
                 "delay": 0,
                 "decay": 6,
                 "neutralization": "SUBINDUSTRY",
-                "truncation": 0.08,
+                "truncation": 0.01,
                 "pasteurization": "ON",
                 "unitHandling": "VERIFY",
                 "nanHandling": "ON",
