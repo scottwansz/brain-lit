@@ -11,9 +11,8 @@ neutralization_array = [
     "SECTOR",
     "INDUSTRY",
     "SUBINDUSTRY",
+    "COUNTRY",
     "SLOW_AND_FAST",
-    "STATISTICAL",
-    "COUNTRY"
 ]
 
 def neutralize(selected_alphas, selected_neutralization_opts, new_phase=2):
