@@ -1,8 +1,5 @@
-from gen.sentiment_gen import main
-
-# 主程序
+from gen.sentiment_gen import gen_sentiment_alphas
 
 
-# 运行主程序
 if __name__ == "__main__":
-    main()
+    gen_sentiment_alphas()

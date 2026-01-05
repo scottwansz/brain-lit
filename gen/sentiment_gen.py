@@ -980,7 +980,7 @@ def explore_data(data):
     print("=" * 80)
 
 
-def main():
+def gen_sentiment_alphas():
     """主程序：生成所有Alpha表达式"""
     print("=" * 80)
     print("情感数据Alpha表达式生成器 V5")
