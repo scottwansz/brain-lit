@@ -13,8 +13,6 @@ submitted_fields = [
     'price_to_mean_estimate_ratio_12m_ebitda',
     'price_to_smartest_forward_ebitda_ratio',
     'price_to_mean_estimate_ratio_year2_ebitda',
-    'price_to_mean_estimate_ratio_year2_ebitda',
-    'price_to_smartest_forward_ebitda_ratio',
 ]
 
 submitted_template = '-ts_av_diff({field}, 5)'
@@ -53,5 +51,5 @@ st.dataframe(all_records)
 print(len(all_records),  "records generated.")
 
 if st.button("保存到数据库"):
-    alpha_table_name = f"{submitted_region.lower()}_alphas"
+    alpha_table_name = "all_alphas"
     batch_insert_records(alpha_table_name, all_records)
