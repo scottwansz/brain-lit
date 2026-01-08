@@ -389,7 +389,7 @@ def save_alpha_simulate_result(alpha_id, simulate_id, s, table_name):
     if r['is']['shortCount'] + r['is']['longCount'] < 100 or r['train']['shortCount'] + r['train']['longCount'] < 100 or r['test']['shortCount'] + r['test']['longCount'] < 100:
         passed = -3
         fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
-    elif len(fail_reasons) > 1:
+    elif len(fail_reasons) > 0:
         passed = -1
     else:
         passed = 0
