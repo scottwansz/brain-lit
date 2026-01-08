@@ -38,9 +38,9 @@ if query_button:
     st.session_state.phase_value = phase
     
     # 获取侧边栏条件
-    region = st.session_state.get('selected_region', 'CHN')
-    universe = st.session_state.get('selected_universe', 'TOP2000U')
-    delay = st.session_state.get('selected_delay', 1)
+    region = st.session_state.get('selected_region', None)
+    universe = st.session_state.get('selected_universe', None)
+    delay = st.session_state.get('selected_delay', None)
     phase_value = st.session_state.get('phase_value', '1')
     
     # 查询各分类下的Alpha数量
@@ -52,9 +52,9 @@ if query_button:
 # 如果已经查询过，显示之前的结果
 if st.session_state.get('submittable_alpha_stats'):
     # 获取侧边栏条件
-    region = st.session_state.get('selected_region', 'CHN')
-    universe = st.session_state.get('selected_universe', 'TOP2000U')
-    delay = st.session_state.get('selected_delay', 1)
+    region = st.session_state.get('selected_region', None)
+    universe = st.session_state.get('selected_universe', None)
+    delay = st.session_state.get('selected_delay', None)
     phase_value = st.session_state.get('phase_value', '1')
     submittable_category_counts = st.session_state.get('submittable_category_counts', [])
     

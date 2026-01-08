@@ -46,9 +46,9 @@ if query_button:
     st.session_state.fitness_threshold = fitness_threshold
     
     # 获取侧边栏条件
-    region = st.session_state.get('selected_region', 'CHN')
-    universe = st.session_state.get('selected_universe', 'TOP2000U')
-    delay = st.session_state.get('selected_delay', 1)
+    region = st.session_state.get('selected_region', None)
+    universe = st.session_state.get('selected_universe', None)
+    delay = st.session_state.get('selected_delay', None)
     phase_value = st.session_state.get('phase_value', '1')
     sharp_val = st.session_state.get('sharp_threshold', 1.0)
     fitness_val = st.session_state.get('fitness_threshold', 0.8)
@@ -62,9 +62,9 @@ if query_button:
 # 如果已经查询过，显示之前的结果
 if st.session_state.get('checkable_alpha_stats'):
     # 获取侧边栏条件
-    region = st.session_state.get('selected_region', 'CHN')
-    universe = st.session_state.get('selected_universe', 'TOP2000U')
-    delay = st.session_state.get('selected_delay', 1)
+    region = st.session_state.get('selected_region', None)
+    universe = st.session_state.get('selected_universe', None)
+    delay = st.session_state.get('selected_delay', None)
     phase_value = st.session_state.get('phase_value', '1')
     sharp_val = st.session_state.get('sharp_threshold', 1.0)
     fitness_val = st.session_state.get('fitness_threshold', 0.8)

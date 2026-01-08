@@ -29,10 +29,6 @@ selected_universe = st.session_state.selected_universe
 selected_delay = st.session_state.selected_delay
 selected_category = st.session_state.selected_category
 
-# 初始化session state中的参数
-if "current_simulate_page" not in st.session_state:
-    st.session_state.current_simulate_page = 1
-
 # 添加Phase输入
 col_phase, col_n_task_max, col_stats, col_simulate_status, col_start_simulate, col_stop_simulate = st.columns([2,2,1,1,1,1], vertical_alignment="bottom")
 
@@ -47,12 +43,12 @@ with col_stats:
     if st.button("回测统计", type="primary"):
         # 获取并显示模拟状态统计信息
         simulation_stats = query_alphas_simulation_stats(
-            selected_region,
-            selected_universe,
-            selected_delay,
-            selected_category,
-            None,  # dataset_ids设为None，查询所有数据集
-            phase,
+            region=selected_region,
+            universe=selected_universe,
+            delay=selected_delay,
+            category=selected_category if selected_category != "" else None,  # 如果选择"All"则传递None
+            dataset_ids=None,  # dataset_ids设为None，查询所有数据集
+            phase=phase,
         )
 
         # 显示统计信息
@@ -94,7 +90,7 @@ if col_stop_simulate.button("停止回测"):
         "region": selected_region,
         "universe": selected_universe,
         "delay": selected_delay,
-        "category": selected_category
+        "category": selected_category if selected_category != "" else None  # 如果选择"All"则传递None
     }
 
     # 调用stop_simulate方法

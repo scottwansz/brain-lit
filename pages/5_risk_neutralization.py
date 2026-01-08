@@ -4,7 +4,7 @@ import sys
 import os
 
 from svc.logger import setup_logger
-from svc.neutralize import neutralize, neutralization_array
+from svc.neutralize import neutralization_array, neutralize
 
 logger = setup_logger(__name__)
 
@@ -53,7 +53,7 @@ with st.container(horizontal=True, horizontal_alignment="left", vertical_alignme
                 universe=selected_universe,
                 delay=selected_delay,
                 phase=phase,
-                category=None if selected_category == "" else selected_category,
+                category=selected_category if selected_category != "" else None,  # 如果选择"All"则传递None
                 sharp_threshold=sharp_threshold,
                 fitness_threshold=fitness_threshold,
                 passed=passed,
@@ -139,13 +139,17 @@ if st.session_state.get("new_alphas_to_save"):
 else:
     st.info("没有新生成的Risk Neutralization Alphas")
 
-# 添加保存到数据库的按钮
+# 保存到数据库按钮
 if st.button("保存到数据库"):
     st.session_state.save_new_alphas = True
 
     # 更新原记录使用状态
     selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
-    table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
+    # 根据地区确定表名，如果region为None则使用all_alphas表
+    if selected_alphas[0]['region'] is not None:
+        table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
+    else:
+        table_name = "all_alphas"
     old_ids = [alpha.get('id') for alpha in selected_alphas]
     update_table(table_name, {'id': old_ids}, {"used": 1})
 
@@ -157,8 +161,11 @@ if st.button("保存到数据库"):
         progress_bar = st.progress(0, text="数据保存进度：0.00%")
 
         try:
-            # 根据地区确定表名
-            table_name = f"{selected_region.lower()}_alphas"
+            # 根据地区确定表名，如果region为None则使用all_alphas表
+            if selected_region is not None:
+                table_name = f"{selected_region.lower()}_alphas"
+            else:
+                table_name = "all_alphas"
 
             for i in range(0, len(new_alphas_to_save), batch_size):
                 batch = new_alphas_to_save[i:i + batch_size]

@@ -83,9 +83,7 @@ def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int
                     # 单个值使用=操作符
                     where_clauses.append(f"{key} = %s")
                     params.append(value)
-            else:
-                # 处理为NULL的情况
-                where_clauses.append(f"{key} IS NULL")
+            # 如果值为None，则跳过此条件，不添加到查询中
         
         # 构建SQL查询语句
         query = f"SELECT * FROM {table_name}"
@@ -93,6 +91,8 @@ def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
         
+        query += " ORDER BY region"
+
         # 添加LIMIT和OFFSET
         if limit is not None:
             query += f" LIMIT {limit}"
@@ -101,6 +101,7 @@ def query_table(table_name: str, conditions: Dict[str, Any], limit: Optional[int
         
         # 执行查询
         cursor.execute(query, params)
+        logger.info(f"Executing query: {cursor.statement}")
         results = cursor.fetchall()
         
         cursor.close()
@@ -160,9 +161,7 @@ def update_table(table_name: str, conditions: Dict[str, Any], updates: Dict[str,
                     # 单个值使用=操作符
                     where_clauses.append(f"{key} = %s")
                     condition_params.append(value)
-            else:
-                # 处理为NULL的情况
-                where_clauses.append(f"{key} IS NULL")
+            # 如果值为None，则跳过此条件，不添加到查询中
         
         # 构建完整的UPDATE语句
         set_clause = ", ".join(set_clauses)

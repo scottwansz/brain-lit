@@ -30,8 +30,8 @@ class SimulateTaskManager:
         self._lock = threading.Lock()
 
     def start_simulate(self, query, n_tasks_max=10):
-        logger.info("Simulate_task: %s", self.simulate_tasks)
-        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+        logger.info("Simulate_query: %s", query)
+        task_id = f"{query.get('region')}-delay{query.get('delay')}"
 
         if self.simulate_tasks.get(task_id):
             task_info = self.simulate_tasks.get(task_id)
@@ -68,7 +68,7 @@ class SimulateTaskManager:
             logger.info("Simulate CHECK is already running.")
 
     def stop_simulate(self, query):
-        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+        task_id = f"{query.get('region')}-delay{query.get('delay')}"
         task_info = self.simulate_tasks.get(task_id)
         if task_info:
             task_info['stop'] = True
@@ -154,7 +154,7 @@ def submit_simulation(s:AutoLoginSession, sim_data_list: list = None):
 def submit_simulation_task(session: AutoLoginSession, simulate_info):
     while len(simulate_info['simulate_ids']) < simulate_info['n_tasks_max'] and not simulate_info['stop']:
 
-        table_name = f"{simulate_info['query']['region'].lower()}_alphas"
+        table_name = f"{simulate_info['query']['region'].lower()}_alphas" if simulate_info['query']['region'] else 'all_alphas'
         records = query_table(table_name, simulate_info['query'], limit=10)
         ids = [record.get('id') for record in records]
         # logger.info('len(records): %s', len(records))
@@ -166,35 +166,41 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
             break
 
         sim_data_list = []
+        first_region = records[0].get('region')
 
         for record in records:
+
+            if record.get('region') != first_region or len(sim_data_list)==10:
+                submit_one_batch(ids, session, sim_data_list, simulate_info, table_name)
+                sim_data_list = []
+                first_region = record.get('region')
+
             sim_data = create_simulation_data(record)
             sim_data_list.append(sim_data)
 
-        simulation_response = submit_simulation(session, sim_data_list)
+        submit_one_batch(ids, session, sim_data_list, simulate_info, table_name)
 
-        if simulation_response.status_code == 429:
-            logger.warning("Simulate FAILED: %s", simulation_response.content.decode())
-            # Simulation failed: {"detail": "CONCURRENT_SIMULATION_LIMIT_EXCEEDED"}
-            simulate_info['n_tasks_max'] = simulate_info['n_tasks_max'] - 1
-            break
 
-        if simulation_response.status_code != 201:
-            logger.error("Simulation response status: %s", simulation_response.status_code)
-            logger.error("Simulation failed: %s", simulation_response.content.decode())
-            break
-
-        progress_url = simulation_response.headers['Location']
-        logger.info("Simulate SUBMITTED: %s", progress_url)
-
-        simulate_id = progress_url.split('/')[-1]
-        # logger.info("simulate_id: %s", simulate_id)
-
-        update_table(table_name, {'id': ids}, {'simulated': -1, 'simulate_id': simulate_id})
-
-        with lock:
-            simulate_info['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
-            simulate_info['n_tasks'] = len(simulate_info['simulate_ids'])
+def submit_one_batch(ids, session, sim_data_list, simulate_info, table_name):
+    simulation_response = submit_simulation(session, sim_data_list if len(sim_data_list) > 1 else sim_data_list[0])
+    if simulation_response.status_code == 429:
+        logger.warning("Simulate FAILED: %s", simulation_response.content.decode())
+        # Simulation failed: {"detail": "CONCURRENT_SIMULATION_LIMIT_EXCEEDED"}
+        simulate_info['n_tasks_max'] = simulate_info['n_tasks_max'] - 1
+        return
+    if simulation_response.status_code != 201:
+        logger.error("Simulation response status: %s", simulation_response.status_code)
+        logger.error("Simulation failed: %s", simulation_response.content.decode())
+        # print(json.dumps(sim_data_list, indent=4, ensure_ascii=False))
+        return
+    progress_url = simulation_response.headers['Location']
+    logger.info("Simulate SUBMITTED: %s", progress_url)
+    simulate_id = progress_url.split('/')[-1]
+    # logger.info("simulate_id: %s", simulate_id)
+    update_table(table_name, {'id': ids}, {'simulated': -1, 'simulate_id': simulate_id})
+    with lock:
+        simulate_info['simulate_ids'][simulate_id] = {'ids': ids, 'start_time': time.time()}
+        simulate_info['n_tasks'] = len(simulate_info['simulate_ids'])
 
 
 def check_progress(s:AutoLoginSession, simulate_id):
@@ -226,33 +232,6 @@ def check_progress(s:AutoLoginSession, simulate_id):
 
     sleep(float(simulation_progress.headers["Retry-After"]))
 
-    # status = simulation_progress.json().get("status", 0)
-    # if status != "COMPLETE":
-    #     print("Not complete : %s" % (progress_url))
-
-    # {
-    #     "children": [
-    #         "nldYBdEx4JUc5g1ieOcqcb",
-    #         "12OKdMdcF4hf9JHlo92b1j8",
-    #         "1HdNNyU253wb3r106VJgVzB",
-    #         "4kFK2u66P4G6bIS1dbax9tJO",
-    #         "1ZpeoDbh151DaHE9rEr9P8j",
-    #         "1tvVaz3Po4ZQ8Xe5c2Tvlws",
-    #         "1XFRBl7R04odaJ6mPbzcqmN",
-    #         "2uBj6Jh0t5cRcnd8dICcYbf",
-    #         "sgT1N20x58g9tocpayNA84",
-    #         "3RVxra4e94q3cICPfdOZsPK"
-    #     ],
-    #     "type": "REGULAR",
-    #     "settings": {
-    #         "instrumentType": "EQUITY",
-    #         "region": "USA",
-    #         "delay": 1,
-    #         "language": "FASTEXPR"
-    #     },
-    #     "status": "COMPLETE"
-    # }
-
     # 检查响应内容是否可以解析为JSON
     try:
         response_json = simulation_progress.json()
@@ -264,6 +243,7 @@ def check_progress(s:AutoLoginSession, simulate_id):
 
 
 def check_simulate_task(session: AutoLoginSession, task_info):
+    table_name = f"{task_info['query']['region'].lower()}_alphas" if task_info['query']['region'] else 'all_alphas'
     completed_simulate_ids = [simulate_id for simulate_id, simulate_info in task_info['simulate_ids'].items()
                               if simulate_info.get('end_time') is not None]
 
@@ -281,15 +261,17 @@ def check_simulate_task(session: AutoLoginSession, task_info):
             # logger.info("progress_data: %s", response)
             simulate_info.update({'end_time': time.time()})
 
-            if response.get("status") == "COMPLETE":
+            if response.get("status") in ["COMPLETE", "WARNING"]:
                 time_used = time.time() - simulate_info.get('start_time')
                 logger.info("Completed simulations in %s seconds: %s", int(time_used), simulate_id)
-                save_simulate_result(session, simulate_id)
+                if response.get("alpha"):
+                    save_alpha_simulate_result(response.get('alpha'), simulate_id, session, table_name)
+                else:
+                    save_simulate_result(session, simulate_id, table_name=table_name)
             else:
                 logger.error("Fail simulations: %s", simulate_id)
-                logger.error("Fail reasons: %s", response)
+                logger.error("Fail reasons: \n%s", json.dumps(response, indent=4, ensure_ascii=False))
 
-                table_name = f"{task_info['query']['region'].lower()}_alphas"
                 ids = task_info['simulate_ids'][simulate_id]['ids']
                 update_table(table_name, {'id': ids}, {'simulated': -2, 'fail_reasons': json.dumps(response)})
 
@@ -317,16 +299,16 @@ def get_unsimulated_records(query, limit=10):
     """
     获取未模拟的记录
     """
-    table_name = f"{query.get('region').lower()}_alphas"
+    table_name = f"{query.get('region').lower()}_alphas" if query.get('region') else "all_alphas"
     return query_table(table_name, query, limit=limit)
 
 
-def save_simulate_result(s: AutoLoginSession, simulate_id):
+def save_simulate_result(s: AutoLoginSession, simulate_id, table_name=None):
     try:
         response = s.get(f"{simulation_url}/{simulate_id}")
     except Exception as e:
         error_message = response.content.decode('utf-8')
-        logger.error("Get child of %s error: %s", simulate_id, error_message)
+        logger.error("Get simulate %s error: %s", simulate_id, error_message)
 
         # if "Incorrect authentication credentials." in error_message:
         #     s = login()
@@ -347,6 +329,10 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
     except JSONDecodeError as e:
         logger.error("Failed to decode JSON for simulation %s. Error: %s", simulate_id, str(e))
         logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
+        return
+
+    if response_json.get('alpha'):
+        save_alpha_simulate_result(response_json.get('alpha'), simulate_id, s, table_name)
         return
 
     for child in response_json.get('children', []):
@@ -377,33 +363,6 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
             logger.error("Response content: %s", response.content.decode('utf-8') if response.content else "Empty response")
             continue
 
-        """
-        response.json() example:
-        {
-          "id": "13SQVPgxU5fqbT735Yp8fKO",
-          "parent": "3J5DmOBn5cIcK614so2AADF",
-          "type": "REGULAR",
-          "settings": {
-            "instrumentType": "EQUITY",
-            "region": "AMR",
-            "universe": "TOP600",
-            "delay": 0,
-            "decay": 6,
-            "neutralization": "SUBINDUSTRY",
-            "truncation": 0.01,
-            "pasteurization": "ON",
-            "unitHandling": "VERIFY",
-            "nanHandling": "ON",
-            "maxTrade": "ON",
-            "language": "FASTEXPR",
-            "visualization": false
-          },
-          "regular": "ts_delay(winsorize(ts_backfill(anl10_ebismun_1yf_5505, 120), std=4), 240)",
-          "status": "COMPLETE",
-          "alpha": "E5Ze0lJR"
-        }
-        """
-
         # 检查响应中是否包含 'alpha' 字段
         if 'alpha' not in child_response_json:
             logger.error("Missing 'alpha' field in response for child simulation %s", child)
@@ -413,48 +372,46 @@ def save_simulate_result(s: AutoLoginSession, simulate_id):
         alpha_id = child_response_json['alpha']
         # regular = response.json()['regular']
 
-        r = get_alpha_one(s, alpha_id)
-        if not r:
-            logger.error("Failed to get alpha simulate result: %s", alpha_id)
-            continue
+        save_alpha_simulate_result(alpha_id, child, s, table_name)
 
-        checks = r.get('is').get('checks')
 
-        # 解析检查结果
-        # passed = all(item["result"] == "PASS" for item in checks)
-        fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
-        # print(f"Alpha {alpha_id} check passed: {passed} {fail_reasons}")
-
-        import json
-
-        if r['is']['shortCount'] + r['is']['longCount'] <  100:
-            passed = -3
-            fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
-        elif len(fail_reasons) > 1:
-            passed = -1
-        else:
-            passed = 0
-
-        set_data = {
-            'alpha_id': r['id'],
-            'sharp': r['is']['sharpe'],
-            'turnover': r['is']['turnover'],
-            'fitness': r['is'].get('fitness', 0),
-            'passed': passed,
-            'fail_reasons': json.dumps(fail_reasons),
-            "simulated": 1,
-            'simulate_id': child
-        }
-        where_data = {
-            'alpha': r.get('regular').get('code'),
-            'region': r['settings']['region'],
-            'universe': r['settings']['universe'],
-            'delay': r['settings']['delay'],
-            'neutralization': r['settings']['neutralization']
-        }
-
-        table_name = f"{r['settings']['region'].lower()}_alphas"
-        update_table(table_name, updates=set_data, conditions=where_data)
+def save_alpha_simulate_result(alpha_id, simulate_id, s, table_name):
+    r = get_alpha_one(s, alpha_id)
+    if not r:
+        logger.error("Failed to get alpha simulate result: %s", alpha_id)
+        return
+    checks = r.get('is').get('checks')
+    # 解析检查结果
+    # passed = all(item["result"] == "PASS" for item in checks)
+    fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
+    # print(f"Alpha {alpha_id} check passed: {passed} {fail_reasons}")
+    import json
+    if r['is']['shortCount'] + r['is']['longCount'] < 100:
+        passed = -3
+        fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
+    elif len(fail_reasons) > 1:
+        passed = -1
+    else:
+        passed = 0
+    set_data = {
+        'alpha_id': r['id'],
+        'sharp': r['is']['sharpe'],
+        'turnover': r['is']['turnover'],
+        'fitness': r['is'].get('fitness', 0),
+        'passed': passed,
+        'fail_reasons': json.dumps(fail_reasons),
+        "simulated": 1,
+        'simulate_id': simulate_id
+    }
+    where_data = {
+        'alpha': r.get('regular').get('code'),
+        'region': r['settings']['region'],
+        'universe': r['settings']['universe'],
+        'delay': r['settings']['delay'],
+        'neutralization': r['settings']['neutralization']
+    }
+    # table_name = f"{r['settings']['region'].lower()}_alphas"
+    update_table(table_name, updates=set_data, conditions=where_data)
 
 
 def get_alpha_one(s: AutoLoginSession, alpha_id, retry=0):

@@ -283,10 +283,16 @@ if col_gen_alphas.button("生成Alpha", type="primary"):        # 获取当前�
                 dataset_fields = get_single_set_fields(** query_params)
                 dataset_expressions = generate_simple_expressions(dataset_fields, template_name=selected_template)
             else:
-                table_name = f"{selected_region.lower()}_alphas"
-                query_params["phase"] = 3
-                query_params["template"] = 'ts_basic'
-                best_records = query_table(table_name, query_params)
+                # 注意：这里使用alpha_query.py中的查询函数，该函数已支持None值
+                query_conditions = {
+                    "region": selected_region,
+                    "universe": selected_universe,
+                    "delay": selected_delay,
+                    "phase": 3,
+                    "template": 'ts_basic'
+                }
+                best_records = query_alphas_by_conditions(**query_conditions)
+                # 之前使用query_table的代码被替换为使用新的查询函数
 
                 simple_expressions = defaultdict(list)
                 for record in best_records:
@@ -347,7 +353,11 @@ if col_save_alphas.button("保存Alpha"):
 
                 insert_record("dataset_used", data=dataset_used_record)
 
-        alpha_table_name = f"{selected_region.lower()}_alphas"
+        # 根据region参数确定表名，如果region为None则使用all_alphas表
+        if selected_region is not None:
+            alpha_table_name = f"{selected_region.lower()}_alphas"
+        else:
+            alpha_table_name = "all_alphas"
 
         # 将new_alphas按每200个元素分批处理
         batch_size = 200
@@ -381,7 +391,11 @@ if col_query_alphas.button("查询Alpha"):
     if selected_category:
         query["category"] = selected_category
 
-    table_name = f"{selected_region.lower()}_alphas"
+    # 根据region参数确定表名，如果region为None则使用all_alphas表
+    if selected_region is not None:
+        table_name = f"{selected_region.lower()}_alphas"
+    else:
+        table_name = "all_alphas"
     query_results = query_table(table_name, conditions= query)
 
     if query_results:

@@ -106,7 +106,7 @@ class TestMain(unittest.TestCase):
             'delay': 0,
             'simulated': 0,
         }
-        task_id = f"{query.get('region').lower()}-delay{query.get('delay')}"
+        task_id = f"{query.get('region')}-delay{query.get('delay')}"
         n_tasks_max = 2
 
         simulate_tasks = DefaultDict(dict)

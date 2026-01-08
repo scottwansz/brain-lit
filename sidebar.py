@@ -111,55 +111,89 @@ def _render_common_parameters():
     
     # 初始化session state中的参数
     if "selected_region" not in st.session_state:
-        st.session_state.selected_region = "USA"
+        st.session_state.selected_region = None
     if "selected_universe" not in st.session_state:
-        st.session_state.selected_universe = REGION_PARAMS["USA"]["universe"][0]
+        st.session_state.selected_universe = None
     if "selected_delay" not in st.session_state:
-        st.session_state.selected_delay = REGION_PARAMS["USA"]["delay"][0]
+        st.session_state.selected_delay = None
     if "selected_category" not in st.session_state:
-        st.session_state.selected_category = ""
+        st.session_state.selected_category = None
     
-    # 地区选择
-    selected_region = st.selectbox(
+    # 地区选择 - 添加"所有"选项
+    region_options = ["All"] + list(REGION_PARAMS.keys())
+    default_region_index = 0  # 默认选择"All"
+    if st.session_state.selected_region is not None and st.session_state.selected_region in region_options:
+        default_region_index = region_options.index(st.session_state.selected_region)
+    selected_region_display = st.selectbox(
         "地区", 
-        list(REGION_PARAMS.keys()), 
-        index=list(REGION_PARAMS.keys()).index(st.session_state.selected_region),
+        region_options, 
+        index=default_region_index,
         key="sidebar_region_select"
     )
-    st.session_state.selected_region = selected_region
+    # 如果选择了"All"，则设置为None，否则设置为具体的地区
+    if selected_region_display == "All":
+        st.session_state.selected_region = None
+        selected_region = None  # 用于后续逻辑的变量
+    else:
+        st.session_state.selected_region = selected_region_display
+        selected_region = selected_region_display
 
-    # 根据选择的地区动态更新股票池选项
-    universe_options = REGION_PARAMS[selected_region]["universe"]
-    # 确保默认值在选项列表中
-    default_universe_index = 0
-    if st.session_state.selected_universe in universe_options:
+    # 股票池选择 - 添加"所有"选项
+    if selected_region is not None:
+        universe_options = REGION_PARAMS[selected_region]["universe"]
+    else:
+        # 如果没有选择特定地区，则显示所有可能的股票池选项
+        all_universe_options = set()
+        for params in REGION_PARAMS.values():
+            all_universe_options.update(params["universe"])
+        universe_options = ["All"] + sorted(list(all_universe_options))
+    
+    default_universe_index = 0  # 默认选择"All"
+    if st.session_state.selected_universe is not None and st.session_state.selected_universe in universe_options:
         default_universe_index = universe_options.index(st.session_state.selected_universe)
-    selected_universe = st.selectbox(
+    selected_universe_display = st.selectbox(
         "股票池", 
         universe_options,
         index=default_universe_index,
         key="sidebar_universe_select"
     )
-    st.session_state.selected_universe = selected_universe
+    # 如果选择了"All"，则设置为None，否则设置为具体的股票池
+    if selected_universe_display == "All":
+        st.session_state.selected_universe = None
+    else:
+        st.session_state.selected_universe = selected_universe_display
 
-    # 根据选择的地区动态更新延迟天数选项
-    delay_options = REGION_PARAMS[selected_region]["delay"]
-    # 确保默认值在选项列表中
-    default_delay_index = 0
-    if st.session_state.selected_delay in delay_options:
+    # 延迟天数选择 - 添加"所有"选项
+    if selected_region is not None:
+        delay_options = REGION_PARAMS[selected_region]["delay"]
+    else:
+        # 如果没有选择特定地区，则显示所有可能的延迟选项
+        all_delay_options = set()
+        for params in REGION_PARAMS.values():
+            all_delay_options.update(params["delay"])
+        delay_options = ["All"] + sorted(list(all_delay_options))
+    
+    default_delay_index = 0  # 默认选择"All"
+    if st.session_state.selected_delay is not None and st.session_state.selected_delay in delay_options:
         default_delay_index = delay_options.index(st.session_state.selected_delay)
-    selected_delay = st.selectbox(
+    selected_delay_display = st.selectbox(
         "延迟天数", 
         delay_options,
         index=default_delay_index,
         key="sidebar_delay_select"
     )
-    st.session_state.selected_delay = selected_delay
+    # 如果选择了"All"，则设置为None，否则设置为具体的延迟天数
+    if selected_delay_display == "All":
+        st.session_state.selected_delay = None
+    else:
+        st.session_state.selected_delay = selected_delay_display
 
-    # 分类选择
+    # 分类选择 - 添加"所有"选项
     category_options = [cat[0] for cat in CATEGORIES]
     category_values = [cat[1] for cat in CATEGORIES]
-    current_category_index = category_values.index(st.session_state.selected_category) if st.session_state.selected_category in category_values else 0
+    current_category_index = 0
+    if st.session_state.selected_category is not None and st.session_state.selected_category in category_values:
+        current_category_index = category_values.index(st.session_state.selected_category)
     selected_category_name = st.selectbox(
         "分类", 
         category_options, 
@@ -167,7 +201,11 @@ def _render_common_parameters():
         key="sidebar_category_select"
     )
     selected_category = CATEGORIES[category_options.index(selected_category_name)][1]
-    st.session_state.selected_category = selected_category
+    # 如果选择了"All"，则设置为None，否则设置为具体的分类
+    if selected_category == '':
+        st.session_state.selected_category = None
+    else:
+        st.session_state.selected_category = selected_category
         
 def _handle_logout():
     """处理退出登录逻辑"""

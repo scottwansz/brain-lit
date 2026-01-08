@@ -41,7 +41,7 @@ for field in submitted_fields:
 
         processed_field = process_field_by_coverage( field, {'type': field_info['type'],  'coverage': rdu['coverage']})
         expression = submitted_template.format(field=processed_field)
-        r = build_alpha_record(region, universe, delay, dataset, field, expression, category=category, template=dataset, phase=9)
+        r = build_alpha_record(region, universe, delay, dataset, field, expression, category=category, template=dataset, phase=1)
         all_records.append(r)
 
         # alpha_table_name = f"{region.lower()}_alphas"
