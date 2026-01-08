@@ -386,7 +386,7 @@ def save_alpha_simulate_result(alpha_id, simulate_id, s, table_name):
     fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
     # print(f"Alpha {alpha_id} check passed: {passed} {fail_reasons}")
     import json
-    if r['is']['shortCount'] + r['is']['longCount'] < 100:
+    if r['is']['shortCount'] + r['is']['longCount'] < 100 or r['train']['shortCount'] + r['train']['longCount'] < 100 or r['test']['shortCount'] + r['test']['longCount'] < 100:
         passed = -3
         fail_reasons = [{'name': 'NOT_ENOUGH_TRADES', 'result': 'FAIL'}]
     elif len(fail_reasons) > 1:
@@ -398,6 +398,12 @@ def save_alpha_simulate_result(alpha_id, simulate_id, s, table_name):
         'sharp': r['is']['sharpe'],
         'turnover': r['is']['turnover'],
         'fitness': r['is'].get('fitness', 0),
+        'is_long': r['is']['longCount'],
+        'is_short': r['is']['shortCount'],
+        'train_long': r['train']['longCount'],
+        'train_short': r['train']['shortCount'],
+        'test_long': r['test']['longCount'],
+        'test_short': r['test']['shortCount'],
         'passed': passed,
         'fail_reasons': json.dumps(fail_reasons),
         "simulated": 1,
@@ -413,9 +419,19 @@ def save_alpha_simulate_result(alpha_id, simulate_id, s, table_name):
     # table_name = f"{r['settings']['region'].lower()}_alphas"
     update_table(table_name, updates=set_data, conditions=where_data)
 
+def get_long_short_count_from_yearly_stats(alpha_id):
+    url = f"https://api.worldquantbrain.com/alphas/{alpha_id}/recordsets/yearly-stats"
+    s = get_auto_login_session()
+    records = s.get(url).json().get('records')
+    long_count, short_count = 0, 0
+    for record in records:
+        long_count += int(record[9])
+        short_count += int(record[10])
+    return long_count + short_count
+
 
 def get_alpha_one(s: AutoLoginSession, alpha_id, retry=0):
-    url = "https://api.worldquantbrain.com/alphas/" + alpha_id
+    url = f"https://api.worldquantbrain.com/alphas/{alpha_id}"
     response = s.get(url)
 
     if response.status_code == 504:
