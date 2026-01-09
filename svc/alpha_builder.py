@@ -91,7 +91,7 @@ def process_field_by_coverage(field: str, field_info: Dict) -> str:
 
     # 处理字段类型
     if field_type == "VECTOR":
-        vector_ops = ["vec_avg", "vec_sum", "vec_max"]
+        vector_ops = ["vec_avg", "vec_sum"]
         field_expr = f"{random.choice(vector_ops)}({field})"
     else:
         field_expr = field
