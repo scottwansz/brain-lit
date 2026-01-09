@@ -2,6 +2,7 @@ import json
 import logging
 import os.path
 import re
+import time
 from typing import Optional, List
 
 import requests
@@ -151,8 +152,8 @@ def get_data_by_url(session: AutoLoginSession, url, resource_id=None):
     if response.status_code == 200:
         return response.json()
     else:
-        print(f"请求失败，状态码: {response.status_code}")
-        print(f"响应内容: {response.text}")
+        logger.error(f"{url}请求失败，状态码: {response.status_code}")
+        logger.error(f"响应内容: \n{response.text}")
         return None
 
 def get_data_field_info(field_name, session):
@@ -163,8 +164,8 @@ def get_data_field_info(field_name, session):
     if response.status_code == 200:
         return response.json()
     else:
-        print(f"请求失败，状态码: {response.status_code}")
-        print(f"响应内容: {response.text}")
+        logger.error(f"{url}请求失败，状态码: {response.status_code}")
+        logger.error(f"响应内容: \n{response.text}")
         return None
 
 
@@ -245,6 +246,8 @@ def get_alpha_desc_related_info(session: AutoLoginSession, alpha:str, alpha_name
     field_info = get_data_field_info(fields[0], session)
     field_desc = field_info.get('description')
     dataset = field_info.get('dataset')
+
+    time.sleep(3)  # 请求失败，状态码: 429 "message":"API rate limit exceeded"
 
     dataset_info = get_data_by_url(session, dataset_url, dataset.get('id'))
     dataset_desc = dataset_info.get('description')
