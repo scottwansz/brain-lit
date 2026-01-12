@@ -1,3 +1,5 @@
+import time
+
 from svc.auth import get_auto_login_session
 from svc.logger import setup_logger
 
@@ -78,6 +80,8 @@ def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY',
         
         # 更新offset以获取下一页数据
         offset += limit
+        logger.info(f"Getting 50 data fields of {dataset} with offset {offset}")
+        time.sleep(3)
     
     return result
 
