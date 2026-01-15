@@ -1,3 +1,4 @@
+import json
 import time
 
 from svc.auth import get_auto_login_session
@@ -83,6 +84,8 @@ def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY',
         logger.info(f"Getting 50 data fields of {dataset} with offset {offset}")
         time.sleep(3)
     
+    # 只取"type"为"MATRIX"与"type"为"VECTOR"的字段
+    result = {k: v for k, v in result.items() if v['type'] in ['MATRIX', 'VECTOR']}
     return result
 
 
@@ -116,5 +119,7 @@ if __name__ == "__main__":
     python -c "from src.brain_lit.svc.datafields import get_all_data_fields; data = get_all_data_fields(dataset_id='analyst11'); print(data)"
     """
     # 调用函数并打印结果
-    fields_dict = get_fields_in_page(dataset_id='other699')
-    print(fields_dict)
+    # fields_dict = get_fields_in_page(dataset_id='other699')
+    # print(fields_dict)
+    fields = get_single_set_fields()
+    print(json.dumps(fields, indent=4, ensure_ascii=False))
