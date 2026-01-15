@@ -49,7 +49,8 @@ def get_fields_in_page(dataset_id='other699', delay=0, instrument_type='EQUITY',
     return {item['id']: {'type': item['type'], 'coverage': item['coverage'], 'description': item['description']} for item in res_json.get('results', [])}
 
 
-def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600'):
+def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY', region='AMR', universe='TOP600',
+                          typs: list[str]=None):
     """
     获取指定数据集的所有字段信息，返回以id为key，type为value的字典
     
@@ -59,11 +60,14 @@ def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY',
         instrument_type (str): 仪器类型
         region (str): 地区
         universe (str): 范围
+        typs(list): 类型
         
     Returns:
         dict: 以id为key，type为value的字典，包含数据集的所有字段
     """
     # 初始化结果字典
+    if typs is None:
+        typs = ['MATRIX', 'VECTOR']
     result = {}
     
     # 分页获取所有数据
@@ -85,7 +89,7 @@ def get_single_set_fields(dataset='other699', delay=0, instrument_type='EQUITY',
         time.sleep(3)
     
     # 只取"type"为"MATRIX"与"type"为"VECTOR"的字段
-    result = {k: v for k, v in result.items() if v['type'] in ['MATRIX', 'VECTOR']}
+    result = {k: v for k, v in result.items() if v['type'] in typs}
     return result
 
 
