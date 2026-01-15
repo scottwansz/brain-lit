@@ -17,11 +17,12 @@ def get_alpha_templates() -> Dict[str, Dict]:
             "structure": "{ts_op}({field_expr}, {window})",
             "description": "基本时间序列操作符模板",
             "category": "simple",
-            "suitable_ts_ops": ["ts_zscore", "ts_product", "ts_std_dev", "ts_av_diff", 
-                               "ts_kurtosis", "ts_mean", "ts_sum", "ts_entropy",
-                               "ts_arg_min", "ts_skewness", "ts_max_diff", "ts_median",
-                               "ts_delta", "ts_arg_max", "ts_max", "ts_min", "ts_rank",
-                               "ts_returns", "ts_scale", "ts_moment", "ts_decay_exp_window", "ts_quantile"],
+            "suitable_ts_ops": [
+                "ts_av_diff",
+                "ts_zscore", "ts_product", "ts_std_dev", "ts_kurtosis", "ts_mean", "ts_sum", "ts_entropy", "ts_arg_min",
+                "ts_skewness", "ts_max_diff", "ts_median", "ts_delta", "ts_arg_max", "ts_max", "ts_min", "ts_rank",
+                "ts_returns", "ts_scale", "ts_moment", "ts_decay_exp_window", "ts_quantile"
+            ],
             "suitable_windows": [5, 10, 20],
             "extra_params": {
                 "ts_returns": ["mode=1"],
