@@ -114,6 +114,7 @@ def get_multi_set_fields(dataset_ids, delay=0, instrument_type='EQUITY', region=
     for dataset_id in dataset_ids:
         dataset_fields = get_single_set_fields(dataset_id, delay, instrument_type, region, universe)
         result.update(dataset_fields)
+        time.sleep(3)
     
     return result
 
