@@ -12,7 +12,7 @@ logger = setup_logger(__name__)
 REGION_PARAMS = {
     "USA": {
         "delay": [1, 0],
-        "universe": ["TOP3000", "TOP1000", "TOP500", "TOP200", "ILLIQUID_MINVOL1M", "TPSP500"]
+        "universe": ["TOP3000", "TOP1000", "TOP500", "TOP200", "ILLIQUID_MINVOL1M", "TOPSP500"]
     },
     "GLB": {
         "delay": [1],
@@ -24,7 +24,7 @@ REGION_PARAMS = {
     },
     "ASI": {
         "delay": [1],
-        "universe": ["MINVOL1M", "ILLIDQUID_MINVOL1M"]
+        "universe": ["MINVOL1M", "ILLIQUID_MINVOL1M"]
     },
     "CHN": {
         "delay": [1, 0],
