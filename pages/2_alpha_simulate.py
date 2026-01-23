@@ -16,6 +16,10 @@ from svc.simulate import get_simulate_task_manager
 # 设置logger
 logger = setup_logger(__name__)
 
+@st.dialog("回测状态")
+def show_status():
+    st.json(task_manager.simulate_tasks)
+
 st.title("🔬 回测Alpha")
 
 # 渲染共享的侧边栏
@@ -29,17 +33,12 @@ selected_universe = st.session_state.selected_universe
 selected_delay = st.session_state.selected_delay
 selected_category = st.session_state.selected_category
 
-# 添加Phase输入
-col_phase, col_n_task_max, col_stats, col_simulate_status, col_start_simulate, col_stop_simulate = st.columns([2,2,1,1,1,1], vertical_alignment="bottom")
-
-with col_phase:
+with st.container(horizontal=True, horizontal_alignment="left"):
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
-
-with col_n_task_max:
-    # 最大任务数输入框
     n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
+    batch_size = st.number_input("批次大小", min_value=1, max_value=10, value=10)
 
-with col_stats:
+with st.container(horizontal=True, horizontal_alignment="left"):
     if st.button("回测统计", type="primary"):
         # 获取并显示模拟状态统计信息
         simulation_stats = query_alphas_simulation_stats(
@@ -58,44 +57,42 @@ with col_stats:
         else:
             st.session_state.simulation_stats_data = None
 
-# 开始回测按钮
-if col_start_simulate.button("开始回测"):
-    # 构建查询参数
-    query_params = {
-        "region": selected_region,
-        "universe": selected_universe,
-        "delay": selected_delay,
-        'simulated': 0,
-        'phase': phase
-    }
+    # 开始回测按钮
+    if st.button("开始回测"):
+        # 构建查询参数
+        query_params = {
+            "region": selected_region,
+            "universe": selected_universe,
+            "delay": selected_delay,
+            'simulated': 0,
+            'phase': phase
+        }
 
-    # 添加分类参数（如果不是"All"）
-    if selected_category and selected_category != "All":
-        query_params["category"] = selected_category
+        # 添加分类参数（如果不是"All"）
+        if selected_category and selected_category != "All":
+            query_params["category"] = selected_category
 
-    # 调用start_simulate方法
-    task_manager.start_simulate(query_params, n_tasks_max)
-    st.success("已开始回测任务")
+        # 调用start_simulate方法
+        task_manager.start_simulate(query_params, n_tasks_max, batch_size=batch_size)
+        st.toast("已开始回测任务")
 
-# 回测状态按钮
-if col_simulate_status.button("回测状态"):
-    # 显示simulate_tasks信息
-    st.write("当前回测任务信息:")
-    st.json(task_manager.simulate_tasks)
+    # 回测状态按钮
+    if st.button("回测状态"):
+        show_status()
 
-# 停止回测按钮
-if col_stop_simulate.button("停止回测"):
-    # 构建查询参数
-    query_params = {
-        "region": selected_region,
-        "universe": selected_universe,
-        "delay": selected_delay,
-        "category": selected_category if selected_category != "" else None  # 如果选择"All"则传递None
-    }
+    # 停止回测按钮
+    if st.button("停止回测"):
+        # 构建查询参数
+        query_params = {
+            "region": selected_region,
+            "universe": selected_universe,
+            "delay": selected_delay,
+            "category": selected_category if selected_category != "" else None  # 如果选择"All"则传递None
+        }
 
-    # 调用stop_simulate方法
-    task_manager.stop_simulate(query_params)
-    st.success("已停止回测任务")
+        # 调用stop_simulate方法
+        task_manager.stop_simulate(query_params)
+        st.toast("已停止回测任务")
 
 # 显示统计信息（如果存在且未被清除）
 if st.session_state.get("simulation_stats_data"):

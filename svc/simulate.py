@@ -29,7 +29,7 @@ class SimulateTaskManager:
         self.simulate_tasks = DefaultDict(dict)
         self._lock = threading.Lock()
 
-    def start_simulate(self, query, n_tasks_max=10):
+    def start_simulate(self, query, n_tasks_max=10, batch_size=10):
         logger.info("Simulate_query: %s", query)
         task_id = f"{query.get('region')}-delay{query.get('delay')}"
 
@@ -38,6 +38,7 @@ class SimulateTaskManager:
             task_info.update({
                 "query": query,
                 "stop": False,
+                "batch_size": batch_size,
                 "n_tasks_max": n_tasks_max,
                 "n_tasks": len(task_info['simulate_ids']),
             })
@@ -46,6 +47,7 @@ class SimulateTaskManager:
             simulate_info = {
                 'query': query,
                 'stop': False,
+                "batch_size": batch_size,
                 'n_tasks_max': n_tasks_max,
                 'n_tasks': 0,
                 'simulate_ids': {},
@@ -151,11 +153,11 @@ def submit_simulation(s:AutoLoginSession, sim_data_list: list = None):
     return simulation_response
 
 
-def submit_simulation_task(session: AutoLoginSession, simulate_info):
+def submit_simulation_task(session: AutoLoginSession, simulate_info: dict):
     while len(simulate_info['simulate_ids']) < simulate_info['n_tasks_max'] and not simulate_info['stop']:
 
         table_name = f"{simulate_info['query']['region'].lower()}_alphas" if simulate_info['query']['region'] else 'all_alphas'
-        records = query_table(table_name, simulate_info['query'], limit=10)
+        records = query_table(table_name, simulate_info['query'], limit=simulate_info.get('batch_size', 10))
         ids = [record.get('id') for record in records]
         # logger.info('len(records): %s', len(records))
         # logger.info('records: %s', records)
@@ -170,7 +172,7 @@ def submit_simulation_task(session: AutoLoginSession, simulate_info):
 
         for record in records:
 
-            if record.get('region') != first_region or len(sim_data_list)==10:
+            if record.get('region') != first_region or len(sim_data_list)==simulate_info.get('batch_size', 10):
                 submit_one_batch(ids, session, sim_data_list, simulate_info, table_name)
                 sim_data_list = []
                 first_region = record.get('region')
