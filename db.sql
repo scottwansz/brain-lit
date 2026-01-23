@@ -54,11 +54,11 @@ WHERE (id) NOT IN (SELECT id FROM ranked_alphas WHERE rn = 1)
 AND phase = 1 AND simulated = 1 AND delay = 1 and template='ts_basic';
 
 
-INSERT INTO glb_alphas (
+INSERT INTO all_alphas (
     region, universe, delay, alpha, decay, neutralization, phase, category, name, simulated, dataset, template
 )
 SELECT
-    region, 'TOPDIV3000' as universe, delay, alpha, decay, neutralization, 3 as phase, category, name, 0 as simulated, dataset, template
+    region, 'TOPDIV3000' as universe, delay, alpha, decay, neutralization, 1 as phase, category, name, 0 as simulated, dataset, template
 FROM glb_alphas
 WHERE submitted = 1;
 
