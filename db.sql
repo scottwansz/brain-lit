@@ -58,7 +58,7 @@ INSERT INTO glb_alphas (
     region, universe, delay, alpha, decay, neutralization, phase, category, name, simulated, dataset, template
 )
 SELECT
-    region, 'MINVOL1M' as universe, delay, alpha, decay, neutralization, 3 as phase, 0 as simulated, category, name, dataset, template
+    region, 'TOPDIV3000' as universe, delay, alpha, decay, neutralization, 3 as phase, category, name, 0 as simulated, dataset, template
 FROM glb_alphas
 WHERE submitted = 1;
 

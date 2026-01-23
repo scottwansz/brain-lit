@@ -16,7 +16,7 @@ REGION_PARAMS = {
     },
     "GLB": {
         "delay": [1],
-        "universe": ["TOP3000", "MINVOL1M"]
+        "universe": ["TOP3000", "TOPDIV3000", "MINVOL1M"]
     },
     "EUR": {
         "delay": [1, 0],
