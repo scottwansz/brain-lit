@@ -53,6 +53,14 @@ DELETE FROM :ind_alphas
 WHERE (id) NOT IN (SELECT id FROM ranked_alphas WHERE rn = 1)
 AND phase = 1 AND simulated = 1 AND delay = 1 and template='ts_basic';
 
+INSERT INTO glb_alphas (
+    region, universe, delay, alpha, decay, neutralization, phase, category, name, dataset, template
+)
+SELECT
+    region, 'MINVOL1M' as universe, delay, alpha, decay, neutralization, 3 as phase, category, name, dataset, template
+FROM glb_alphas
+WHERE submitted = 1;
+
 select * from CHN_alphas
 where JSON_CONTAINS(fail_reasons,'[{"name": "D0_SUBMISSION", "limit": 30, "value": 30, "result": "FAIL"}]') ;
 
