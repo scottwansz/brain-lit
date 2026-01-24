@@ -129,7 +129,7 @@ def check_one_batch(alpha_list, task: dict, manager=None):
             passed_count += 1 if len(fail_reasons) == 0 else 0
 
             # 更新数据库
-            table_name = f'{record['region'].lower()}_alphas'
+            table_name = f'{task.get('query').get('region').lower()}_alphas' if task.get('query').get('region') else 'all_alphas'
             update_table(table_name, {'id': record['id']}, set_data)
 
         # 更新任务进度

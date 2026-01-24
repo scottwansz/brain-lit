@@ -1,12 +1,12 @@
 CREATE TABLE `all_alphas` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `region` varchar(3) DEFAULT NULL,
   `universe` varchar(32) DEFAULT NULL,
   `delay` tinyint(4) DEFAULT NULL,
   `alpha` varchar(512) DEFAULT NULL,
-  `decay` tinyint(4) DEFAULT NULL,
+  `decay` int(11) DEFAULT NULL,
   `neutralization` varchar(32) DEFAULT NULL,
-  `phase` tinyint(4) DEFAULT NULL,
+  `phase` int(11) DEFAULT NULL,
   `simulated` tinyint(4) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -30,8 +30,9 @@ CREATE TABLE `all_alphas` (
   `test_long` smallint(6) DEFAULT NULL,
   `test_short` smallint(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_unique_fields` (`region`, `delay`, `universe`, `neutralization`, `decay`, `alpha`)
-)
+  UNIQUE KEY `idx_unique_fields` (`region`, `delay`, `universe`, `neutralization`, `decay`, `alpha`) BLOCK_SIZE 16384 LOCAL
+) ORGANIZATION INDEX AUTO_INCREMENT = 3964 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 2 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0;
+
 
 CREATE TABLE `dataset_used` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

@@ -74,6 +74,9 @@ update ind_alphas set phase=2, simulated=0
 WHERE JSON_SEARCH(fail_reasons, 'one', 'CONCENTRATED_WEIGHT', NULL, '$[*].name') IS NOT NULL
   AND JSON_LENGTH(fail_reasons) = 1 AND passed=-1;
 
- [{'name': 'PURE_POWER_POOL_THEME', 'result': 'FAIL'}]
+SELECT * FROM all_alphas WHERE JSON_CONTAINS(
+    fail_reasons,
+    '[{"name": "PURE_POWER_POOL_THEME", "result": "FAIL"}]'
+);
 
 UPDATE ind_alphas SET alpha = REPLACE(alpha, 'vec_max', 'vec_avg') WHERE alpha LIKE '%vec_max%';
