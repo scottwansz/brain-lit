@@ -143,13 +143,14 @@ else:
 if st.button("保存到数据库"):
     st.session_state.save_new_alphas = True
 
-    # 更新原记录使用状态
-    selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
     # 根据地区确定表名，如果region为None则使用all_alphas表
-    if selected_alphas[0]['region'] is not None:
-        table_name = f"{selected_alphas[0]['region'].lower()}_alphas"
+    if selected_region is not None:
+        table_name = f"{selected_region.lower()}_alphas"
     else:
         table_name = "all_alphas"
+
+    # 更新原记录使用状态
+    selected_alphas = [st.session_state.best_alphas[i] for i in st.session_state.selected_rows]
     old_ids = [alpha.get('id') for alpha in selected_alphas]
     update_table(table_name, {'id': old_ids}, {"used": 1})
 
@@ -161,11 +162,6 @@ if st.button("保存到数据库"):
         progress_bar = st.progress(0, text="数据保存进度：0.00%")
 
         try:
-            # 根据地区确定表名，如果region为None则使用all_alphas表
-            if selected_region is not None:
-                table_name = f"{selected_region.lower()}_alphas"
-            else:
-                table_name = "all_alphas"
 
             for i in range(0, len(new_alphas_to_save), batch_size):
                 batch = new_alphas_to_save[i:i + batch_size]
