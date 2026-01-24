@@ -35,7 +35,7 @@ selected_category = st.session_state.selected_category
 
 with st.container(horizontal=True, horizontal_alignment="left"):
     phase = st.number_input("Phase", min_value=1, max_value=9, value=1, step=1)
-    n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=10)
+    n_tasks_max = st.number_input("最大任务数", min_value=1, max_value=10, value=8)
     batch_size = st.number_input("批次大小", min_value=1, max_value=10, value=10)
 
 with st.container(horizontal=True, horizontal_alignment="left"):
