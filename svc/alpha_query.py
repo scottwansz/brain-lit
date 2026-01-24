@@ -242,7 +242,7 @@ def query_checkable_alpha_stats(region: str = None, universe: str = None, delay:
         WITH ranked_alphas AS (
             SELECT *,
                    ROW_NUMBER() OVER (
-                       PARTITION BY name
+                       PARTITION BY region, universe, delay, name, template
                        ORDER BY abs(sharp*fitness) DESC
                    ) AS rn
             FROM {table_name}  
@@ -325,7 +325,7 @@ def query_checkable_alpha_details(
         WITH ranked_alphas AS (
             SELECT *,
                    ROW_NUMBER() OVER (
-                       PARTITION BY name
+                       PARTITION BY region, universe, delay, name, template
                        ORDER BY abs(sharp*fitness) DESC
                    ) AS rn
             FROM {table_name}  

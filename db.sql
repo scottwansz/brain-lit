@@ -12,7 +12,7 @@ order by phase, simulated, category, dataset;
 
 SELECT *,
        ROW_NUMBER() OVER (
-           PARTITION BY name
+           PARTITION BY name, region, universe, delay, template
            ORDER BY abs(sharp*fitness) DESC
        ) AS rn
 FROM ASI_alphas
@@ -23,7 +23,7 @@ order by rn;
 WITH ranked_alphas AS (
     SELECT *,
            ROW_NUMBER() OVER (
-               PARTITION BY name
+               PARTITION BY name, region, universe, delay, template
                ORDER BY abs(sharp*fitness) DESC
            ) AS rn
     FROM ASI_alphas
