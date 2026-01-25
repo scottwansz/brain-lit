@@ -167,7 +167,7 @@ if col4_submit.button("提交Alpha", type="primary"):
             records = selected_df.to_dict('records')
 
             # 提交选中的Alpha，使用指定的最大提交数量
-            task_manager.start(records=records, max_submit_count=max_submit_count)
+            task_manager.start(records=records, max_submit_count=max_submit_count, region=st.session_state.get('selected_region', None))
 
             st.success(f"开始提交最多 {max_submit_count} 个Alpha")
         else:

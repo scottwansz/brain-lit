@@ -32,8 +32,9 @@ class SubmitTaskManager:
             "details": "Preparing...",
         }
 
-    def start(self, records:List[Dict[str, Any]], max_submit_count: int = 4):
+    def start(self, records:List[Dict[str, Any]], max_submit_count: int = 4, region=None):
         self.status.update({
+            "region": region,
             "stop": False,
             "submitted_count": 0,
             "max_submit_count": max_submit_count,
@@ -219,7 +220,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
             response = s.get(url)
 
     if response.status_code == 200 or response.status_code == 404:
-        table_name = f"{region.lower()}_alphas"
+        table_name = f"{region.lower()}_alphas" if task_info.get('region') else "all_alphas"
         update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
         logger.info(f"Alpha {alpha_id} submitted successfully with status code {response.status_code}")
         return True, None
@@ -236,7 +237,8 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
 
         elif error_already_submitted in checks:
             error = 'ALREADY_SUBMITTED'
-            update_table(f"{region.lower()}_alphas", {'alpha_id': alpha_id}, {'submitted': 1})
+            table_name = f"{region.lower()}_alphas" if task_info.get('region') else "all_alphas"
+            update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
 
         else:
             # 检查未通过的情形，如sharp值小于1.58
