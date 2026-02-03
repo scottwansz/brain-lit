@@ -43,7 +43,7 @@ SELECT * FROM ranked_alphas WHERE rn = 1 AND passed = 0 AND sharp >= 1 ORDER BY 
 WITH ranked_alphas AS (
     SELECT *,
            ROW_NUMBER() OVER (
-               PARTITION BY name
+               PARTITION BY name, region, universe, delay, template
                ORDER BY abs(sharp*fitness) DESC
            ) AS rn
     FROM :ind_alphas
