@@ -154,7 +154,7 @@ if st.session_state.get('submittable_alpha_stats'):
 col_max_submit_count, col4_submit, col6_submit_status, col5_stop_submit, _ = st.columns([2,1,1,1,2], vertical_alignment="bottom")
 
 with col_max_submit_count:
-    max_submit_count = st.number_input("提交数量", min_value=1, max_value=20, value=4, step=1)
+    max_submit_count = st.number_input("提交数量", min_value=1, max_value=4, value=1, step=1)
 
 task_manager = get_submit_task_manager()
 
