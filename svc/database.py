@@ -24,6 +24,7 @@ def get_db_connection():
         return connection
     except Exception as e:
         print(f"数据库连接失败: {e}")
+        # 数据库连接失败: 2013: Lost connection to MySQL server during query
         return None
 
 def query_by_sql(sql: str) -> List[Dict[str, Any]]:
