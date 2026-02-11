@@ -109,7 +109,7 @@ with col_selected_neutralization_opts:
     selected_neutralization_opts = st.multiselect(
         "选择Neutralization类型",
         options=neutralization_array,
-        default=["MARKET", "SECTOR", "INDUSTRY", "COUNTRY"]
+        default=neutralization_array # ["MARKET", "SECTOR", "INDUSTRY", "COUNTRY"]
     )
 
 # 生成Risk Neutralization Alphas按钮

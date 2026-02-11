@@ -20,7 +20,7 @@ REGION_PARAMS = {
     },
     "EUR": {
         "delay": [1, 0],
-        "universe": ["TOP2500","TOP1200", "TOP800", "TOP400", "ILLIQUID_MINVOL1M"]
+        "universe": ["TOP2500","TOP1200", "TOP800", "TOP400", "ILLIQUID_MINVOL1M", "TOPCS1600"]
     },
     "ASI": {
         "delay": [1],
