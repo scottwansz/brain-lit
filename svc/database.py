@@ -177,6 +177,7 @@ def update_table(table_name: str, conditions: Dict[str, Any], updates: Dict[str,
         
         # 执行更新
         cursor.execute(query, params)
+        logger.debug(f"Executing query: {cursor.statement}")
         affected_rows = cursor.rowcount
         
         connection.commit()

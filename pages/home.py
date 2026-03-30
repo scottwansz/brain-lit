@@ -1,9 +1,7 @@
-import streamlit as st
-import sys
 import os
-import streamlit_js_eval
+import sys
 
-from sidebar import render_sidebar
+import streamlit as st
 
 # 添加src目录到路径中
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -29,24 +27,8 @@ def format_time_remaining(seconds):
     else:
         return f"{int(secs)}秒"
 
-def clear_session_from_browser():
-    """从浏览器清除AutoLoginSession对象"""
-    try:
-        streamlit_js_eval.set_cookie("brain_lit_session", "", -1)  # 删除cookie
-        logger.info("已从浏览器cookie清除AutoLoginSession")
-    except Exception as e:
-        logger.error(f"从浏览器清除AutoLoginSession时出错: {e}")
-
 def render_main_page():
     """显示主页面"""
-
-    # 渲染共享的侧边栏
-    render_sidebar()
-    
-    # 使用全局会话对象以获取登录信息
-    # session = st.session_state.global_session
-    # time_until_expiry = session.get_time_until_expiry()
-    # formatted_time = format_time_remaining(time_until_expiry)
     
     # 主页面内容
     st.title("🧠 Brain-Lit 应用")
@@ -58,11 +40,3 @@ def render_main_page():
     2. **Simulate Alpha**: 对Alpha进行回测模拟
     3. **提交Alpha**: 提交验证后的Alpha
     """)
-    
-    # 显示登录状态信息
-    # st.markdown("### 当前登录状态")
-    # col1, col2 = st.columns(2)
-    # with col1:
-    #     st.metric("用户ID", session.user_id)
-    # with col2:
-    #     st.metric("登录剩余时间", formatted_time)
