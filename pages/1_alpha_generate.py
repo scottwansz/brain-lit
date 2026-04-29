@@ -221,7 +221,7 @@ if st.session_state.get("query_datasets_clicked", False):
             df,
             key="dataset_selection",
             on_select="rerun",
-            selection_mode="multi-row"
+            selection_mode="single-row"
         )
         
         # 处理选中的数据集
