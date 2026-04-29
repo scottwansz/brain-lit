@@ -81,10 +81,11 @@ def get_phase2_alphas(region):
 if __name__ == '__main__':
     th_alpha_list = []
     region = "EUR"
-    expr = get_phase2_alphas(region)
+    expr_list = get_phase2_alphas(region)
 
-    for alpha in trade_when_factory("trade_when", expr, region):
-        th_alpha_list.append(alpha)
+    for expr in expr_list:
+        for alpha in trade_when_factory("trade_when", expr, region):
+            th_alpha_list.append(alpha)
 
     for alpha in th_alpha_list:
         print(alpha)

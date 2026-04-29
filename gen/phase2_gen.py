@@ -146,12 +146,13 @@ def get_phase1_alphas(param):
 
 if __name__ == '__main__':
     region = "EUR"
-    expr = get_phase1_alphas(region)
+    expr_list = get_phase1_alphas(region)
     group_ops = ["group_neutralize", "group_rank", "group_zscore"]
     so_alpha_list = []
 
-    for alpha in get_group_second_order_factory([expr], group_ops, region):
-        so_alpha_list.append(alpha)
+    for expr in expr_list:
+        for alpha in get_group_second_order_factory([expr], group_ops, region):
+            so_alpha_list.append(alpha)
 
     for alpha in so_alpha_list:
         print(alpha)
