@@ -1,3 +1,8 @@
+from svc.database import get_db_connection
+from svc.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 
 def group_factory(op, field, region):
     output = []
@@ -137,22 +142,52 @@ def get_group_second_order_factory(first_order, group_ops, region):
     return second_order
 
 
-def get_phase1_alphas(param):
-    return [
-        "ts_sum(ts_backfill(vec_avg(avg_rest_time_ask_cancelled_lvl1), 250), 5)",
-        "-ts_std_dev(ts_backfill(vec_avg(filled_ebbo_order_count), 250), 5)",
-    ]
+def get_phase1_alphas(region, sharp=1.0, fitness=0.7):
+    # 根据地区确定表名，如果region为None，则使用all_alphas表
+    if region is None:
+        table_name = "all_alphas"
+    else:
+        table_name = f"{region.lower()}_alphas"
 
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return []
 
-if __name__ == '__main__':
-    region = "EUR"
-    expr_list = get_phase1_alphas(region)
-    group_ops = ["group_neutralize", "group_rank", "group_zscore"]
-    so_alpha_list = []
+        cursor = connection.cursor(dictionary=True)
 
-    for expr in expr_list:
-        for alpha in get_group_second_order_factory([expr], group_ops, region):
-            so_alpha_list.append(alpha)
+        # 构建查询语句
+        base_query = f"""
+        WITH ranked_alphas AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY region, universe, delay, name, template
+                       ORDER BY abs(sharp*fitness) DESC
+                   ) AS rn
+            FROM {table_name}  
+            WHERE 1=1
+        """
 
-    for alpha in so_alpha_list:
-        print(alpha)
+        params = []
+
+        base_query += """
+        )
+        SELECT * FROM ranked_alphas 
+        WHERE rn = 1 AND sharp >= %s AND fitness >= %s
+        ORDER BY abs(sharp*fitness) DESC 
+        LIMIT 500
+        """
+
+        params.extend([sharp, fitness])
+
+        cursor.execute(base_query, tuple(params))
+        # logger.info('query_checkable_alpha_details SQL: %s', cursor.statement)
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return results
+    except Exception as e:
+        logger.error(f"查询可检查Alpha详情时出错: {e}")
+        return []

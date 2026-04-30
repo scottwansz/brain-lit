@@ -1,3 +1,7 @@
+from svc.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 def trade_when_factory(op, field, region):
     output = []
     open_events = ["ts_arg_max(volume, 5) == 0", "ts_corr(close, volume, 20) < 0",
