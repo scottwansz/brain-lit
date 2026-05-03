@@ -34,13 +34,17 @@ REGION_PARAMS = {
         "delay": [1, 0],
         "universe": ["TOP1600", "TOP1200"]
     },
-    "AMR": {
-        "delay": [1, 0],
-        "universe": ["TOP600"]
-    },
     "IND": {
         "delay": [1],
         "universe": ["TOP500"]
+    },
+    "MEA": {
+        "delay": [1],
+        "universe": ["TOP300"]
+    },
+    "AMR": {
+        "delay": [1, 0],
+        "universe": ["TOP600"]
     },
 }
 
