@@ -27,11 +27,10 @@ with st.container(horizontal= True, horizontal_alignment="left", vertical_alignm
 
 select_rows = []
 if 'phase_n_records' in st.session_state:
+    st.info(f"查询到以下 {len(st.session_state.phase_n_records)} 个Alpha：")
     select_event = st.dataframe(st.session_state.phase_n_records, selection_mode="multi-row", on_select="rerun")
     selected_rows_idx = select_event.selection.rows if select_event and select_event.selection else []
     select_rows = [st.session_state.phase_n_records[i] for i in selected_rows_idx]
-
-    st.write(selected_rows_idx)
 
 with st.container(horizontal= True, horizontal_alignment="left", vertical_alignment="bottom"):
     phase = st.number_input("Phase:", min_value=1, max_value=9, value=9, step=1, key="phase")
@@ -80,4 +79,5 @@ if 'alphas_to_save' in st.session_state and 'save_new_alphas' in st.session_stat
     st.session_state.save_new_alphas = False
 
 if 'alphas_to_save' in st.session_state:
+    st.info(f"以下 {len(st.session_state.alphas_to_save)} 个Alpha将保存：")
     st.dataframe(st.session_state.alphas_to_save)
