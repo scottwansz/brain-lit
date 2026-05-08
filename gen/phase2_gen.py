@@ -167,7 +167,7 @@ def get_phase1_alphas(region, delay, sharp=1.0, fitness=0.7):
                        ORDER BY abs(sharp*fitness) DESC
                    ) AS rn
             FROM {table_name}  
-            WHERE delay=%s AND passed=1 AND used=1 AND sharp >= %s AND fitness >= %s
+            WHERE delay=%s AND passed=1 AND sharp >= %s AND fitness >= %s
         """
 
         params = [delay, sharp, fitness]
@@ -175,7 +175,7 @@ def get_phase1_alphas(region, delay, sharp=1.0, fitness=0.7):
         base_query += """
         )
         SELECT * FROM ranked_alphas 
-        WHERE rn = 1
+        WHERE rn = 1 AND used=1
         ORDER BY abs(sharp*fitness) DESC 
         LIMIT 50
         """

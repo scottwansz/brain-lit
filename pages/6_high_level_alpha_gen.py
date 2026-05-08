@@ -16,11 +16,11 @@ region = st.session_state.get('selected_region', 'all') or 'all'
 delay = st.session_state.get('selected_delay', 1) or 1
 
 with st.container(horizontal= True, horizontal_alignment="left", vertical_alignment="bottom"):
-    target_level = st.radio("Target Level:", ("Level 2", "Level 3"), horizontal= True)
+    target_level = st.radio("Target Level:", ("2", "3"), horizontal= True)
 
     if st.button("Query"):
 
-        if target_level == "Level 2":
+        if target_level == "2":
             st.session_state.phase_n_records = get_phase1_alphas(region, delay=0)
         else:
             phase_n_records = []
@@ -45,9 +45,9 @@ with st.container(horizontal= True, horizontal_alignment="left", vertical_alignm
                 new_record = r.copy()
                 new_record['alpha'] = alpha
                 new_record['phase'] = phase
-                new_record['template'] = 'phase2'
+                new_record['template'] = f'phase{target_level}'
                 new_record['simulated'] = 0
-                new_record['used'] = 2
+                new_record['used'] = int(target_level)
                 new_record.pop('id')
                 new_record.pop('rn')
                 new_records.append(new_record)
@@ -73,7 +73,7 @@ if 'alphas_to_save' in st.session_state and 'save_new_alphas' in st.session_stat
         progress_bar.progress(progress, text=progress_text)
 
     old_ids = [alpha.get('id') for alpha in select_rows]
-    update_table(table_name, {'id': old_ids}, {"used": 2})
+    update_table(table_name, {'id': old_ids}, {"used": int(target_level)})
 
     st.success(f"成功保存 {len(st.session_state.alphas_to_save)} 个Alpha")
     st.session_state.save_new_alphas = False

@@ -348,7 +348,7 @@ def batch_insert_records(table_name: str, data_list: List[Dict[str, Any]]) -> in
         placeholders = ', '.join(['%s'] * len(columns))
         
         # 构建INSERT语句
-        query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
+        query = f"INSERT IGNORE INTO {table_name} ({column_names}) VALUES ({placeholders})"
         
         # 为每个数据字典执行插入
         for data in data_list:
