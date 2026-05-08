@@ -142,7 +142,7 @@ def get_group_second_order_factory(first_order, group_ops, region):
     return second_order
 
 
-def get_phase1_alphas(region, sharp=1.0, fitness=0.7):
+def get_phase1_alphas(region, delay, sharp=1.0, fitness=0.7):
     # 根据地区确定表名，如果region为None，则使用all_alphas表
     if region is None:
         table_name = "all_alphas"
@@ -165,20 +165,18 @@ def get_phase1_alphas(region, sharp=1.0, fitness=0.7):
                        ORDER BY abs(sharp*fitness) DESC
                    ) AS rn
             FROM {table_name}  
-            WHERE 1=1
+            WHERE delay=%s AND passed=1 AND used=1 AND sharp >= %s AND fitness >= %s
         """
 
-        params = []
+        params = [delay, sharp, fitness]
 
         base_query += """
         )
         SELECT * FROM ranked_alphas 
-        WHERE rn = 1 AND sharp >= %s AND fitness >= %s
+        WHERE rn = 1
         ORDER BY abs(sharp*fitness) DESC 
-        LIMIT 500
+        LIMIT 50
         """
-
-        params.extend([sharp, fitness])
 
         cursor.execute(base_query, tuple(params))
         # logger.info('query_checkable_alpha_details SQL: %s', cursor.statement)
