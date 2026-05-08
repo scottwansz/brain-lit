@@ -1,3 +1,4 @@
+from svc.database import get_db_connection
 from svc.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -75,21 +76,50 @@ def trade_when_factory(op, field, region):
     return output
 
 
-def get_phase2_alphas(region):
-    return [
-        "ts_sum(ts_backfill(vec_avg(avg_rest_time_ask_cancelled_lvl1), 250), 5)",
-        "-ts_std_dev(ts_backfill(vec_avg(filled_ebbo_order_count), 250), 5)",
-    ]
+def get_phase2_alphas(region, delay, sharp=1.0, fitness=0.7):
+    # 根据地区确定表名，如果region为None，则使用all_alphas表
+    if region is None:
+        table_name = "all_alphas"
+    else:
+        table_name = f"{region.lower()}_alphas"
 
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return []
 
-if __name__ == '__main__':
-    th_alpha_list = []
-    region = "EUR"
-    expr_list = get_phase2_alphas(region)
+        cursor = connection.cursor(dictionary=True)
 
-    for expr in expr_list:
-        for alpha in trade_when_factory("trade_when", expr, region):
-            th_alpha_list.append(alpha)
+        # 构建查询语句
+        base_query = f"""
+        WITH ranked_alphas AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY region, universe, delay, name, template
+                       ORDER BY abs(sharp*fitness) DESC
+                   ) AS rn
+            FROM {table_name}  
+            WHERE delay=%s AND template='phase2' AND sharp >= %s AND fitness >= %s
+        """
 
-    for alpha in th_alpha_list:
-        print(alpha)
+        params = [delay, sharp, fitness]
+
+        base_query += """
+        )
+        SELECT * FROM ranked_alphas 
+        WHERE rn = 1 AND used=2
+        ORDER BY abs(sharp*fitness) DESC 
+        LIMIT 50
+        """
+
+        cursor.execute(base_query, tuple(params))
+        # logger.info('query_checkable_alpha_details SQL: %s', cursor.statement)
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return results
+    except Exception as e:
+        logger.error(f"查询可检查Alpha详情时出错: {e}")
+        return []

@@ -1,6 +1,7 @@
 import streamlit as st
 
 from gen.phase2_gen import get_phase1_alphas, get_group_second_order_factory
+from gen.phase3_gen import get_phase2_alphas, trade_when_factory
 from sidebar import render_sidebar
 from svc.database import batch_insert_records, update_table
 from svc.logger import setup_logger
@@ -13,7 +14,7 @@ render_sidebar()
 st.title("High Level Alpha Gen")
 
 region = st.session_state.get('selected_region', 'all') or 'all'
-delay = st.session_state.get('selected_delay', 1) or 1
+delay = st.session_state.get('selected_delay', 1)
 
 with st.container(horizontal= True, horizontal_alignment="left", vertical_alignment="bottom"):
     target_level = st.radio("Target Level:", ("2", "3"), horizontal= True)
@@ -21,9 +22,11 @@ with st.container(horizontal= True, horizontal_alignment="left", vertical_alignm
     if st.button("Query"):
 
         if target_level == "2":
-            st.session_state.phase_n_records = get_phase1_alphas(region, delay=0)
+            st.session_state.phase_n_records = get_phase1_alphas(region, delay=delay)
+        elif target_level == "3":
+            st.session_state.phase_n_records = get_phase2_alphas(region, delay=delay)
         else:
-            phase_n_records = []
+            st.toast("请选择正确的目标级别")
 
 select_rows = []
 if 'phase_n_records' in st.session_state:
@@ -37,20 +40,40 @@ with st.container(horizontal= True, horizontal_alignment="left", vertical_alignm
 
     if st.button("Gen", disabled=not select_rows):
         new_records = []
-        group_ops = ["group_neutralize", "group_rank", "group_zscore"]
 
-        for r in select_rows:
-            expr = r['alpha']
-            for alpha in get_group_second_order_factory([expr], group_ops, region):
-                new_record = r.copy()
-                new_record['alpha'] = alpha
-                new_record['phase'] = phase
-                new_record['template'] = f'phase{target_level}'
-                new_record['simulated'] = 0
-                new_record['used'] = int(target_level)
-                new_record.pop('id')
-                new_record.pop('rn')
-                new_records.append(new_record)
+        if target_level == "2":
+            group_ops = ["group_neutralize", "group_rank", "group_zscore"]
+
+            for r in select_rows:
+                expr = r['alpha']
+                for alpha in get_group_second_order_factory([expr], group_ops, region):
+                    new_record = r.copy()
+                    new_record['alpha'] = alpha
+                    new_record['phase'] = phase
+                    new_record['template'] = f'phase{target_level}'
+                    new_record['simulated'] = 0
+                    new_record['submitted'] = 0
+                    new_record['used'] = int(target_level)
+                    new_record.pop('id')
+                    new_record.pop('rn')
+                    new_records.append(new_record)
+
+        elif target_level == "3":
+            for r in select_rows:
+                for alpha in trade_when_factory('trade_when', r['alpha'], region):
+                    new_record = r.copy()
+                    new_record['alpha'] = alpha
+                    new_record['phase'] = phase
+                    new_record['template'] = f'phase{target_level}'
+                    new_record['simulated'] = 0
+                    new_record['submitted'] = 0
+                    new_record['used'] = int(target_level)
+                    new_record.pop('id')
+                    new_record.pop('rn')
+                    new_records.append(new_record)
+
+        else:
+            st.toast("请选择正确的目标级别")
 
         st.session_state.alphas_to_save = new_records
 
