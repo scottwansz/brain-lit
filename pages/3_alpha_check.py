@@ -131,7 +131,7 @@ if st.session_state.get('checkable_alpha_stats'):
             st.subheader(f"[{chosen_category or '全部'}]分类下的可检查Alpha")
             df = pd.DataFrame(alpha_details)
             # 移除不需要的列
-            columns_to_drop = [col for col in df.columns if col in ['rn', 'simulated', 'passed']]
+            columns_to_drop = [col for col in df.columns if col in ['rn', 'simulated']]
             df = df.drop(columns=columns_to_drop)
             st.dataframe(df)
         else:
