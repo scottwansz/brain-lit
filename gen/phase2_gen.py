@@ -89,17 +89,17 @@ def group_factory(op, field, region):
     # bps_group = "bucket(rank(fnd28_value_05480), range='0.1, 1, 0.1')"
     # pb_group = "bucket(rank(close/fnd28_value_05480), range='0.1, 1, 0.1')"
     cap_group = "bucket(rank(cap), range='0.1, 1, 0.1')"
-    asset_group = "bucket(rank(assets),range='0.1, 1, 0.1')"
+    # asset_group = "bucket(rank(assets),range='0.1, 1, 0.1')"
     sector_cap_group = "bucket(group_rank(cap, sector),range='0.1, 1, 0.1')"
-    sector_asset_group = "bucket(group_rank(assets, sector),range='0.1, 1, 0.1')"
+    # sector_asset_group = "bucket(group_rank(assets, sector),range='0.1, 1, 0.1')"
 
     vol_group = "bucket(rank(ts_std_dev(returns,20)),range = '0.1, 1, 0.1')"
 
     liquidity_group = "bucket(rank(close*volume),range = '0.1, 1, 0.1')"
 
     groups = ["market", "sector", "industry", "subindustry",
-              cap_group, asset_group, sector_cap_group, sector_asset_group, vol_group,
-              liquidity_group]  # pb_group, bps_group,
+              cap_group, sector_cap_group, vol_group,
+              liquidity_group]  # pb_group, bps_group, asset_group, sector_asset_group,
 
     if region == "CHN":
         groups += chn_group_1  # + chn_group_13 + chn_group_2
