@@ -239,6 +239,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
             error = 'ALREADY_SUBMITTED'
             table_name = f"{region.lower()}_alphas" if task_info.get('region') else "all_alphas"
             update_table(table_name, {'alpha_id': alpha_id}, {'submitted': 1})
+            return True, error
 
         else:
             # 检查未通过的情形，如sharp值小于1.58
