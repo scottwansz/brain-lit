@@ -108,10 +108,10 @@ def submit_task(records: List[Dict[str, Any]], status: Dict[str, Any], manager=N
                 "details": error,
             })
 
-            if error in ['REGULAR_SUBMISSION_LIMIT']:
+            if error in ['REGULAR_SUBMISSION_LIMIT', 'D0_SUBMISSION_LIMIT']:
                 status.update({
                     "status": "STOPPED",
-                    "details": "已达到提交限制，请稍后再试"
+                    "details": f"已达到提交限制: {error}"
                 })
 
                 # 任务完成后将manager.thread设为None
@@ -186,6 +186,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
     })
 
     error_reached_quota = {"name": "REGULAR_SUBMISSION", "result": "FAIL", "limit": 4, "value": 4}  # Alpha submissions 4 reached quota of 4.
+    error_reached_d0_quota = {'name': 'D0_SUBMISSION', 'result': 'FAIL', 'limit': 30, 'value': 30}
     error_already_submitted = {"name": "ALREADY_SUBMITTED", "result": "FAIL"}
     error_throttled = {"detail": "THROTTLED"}
 
@@ -234,6 +235,9 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
 
         if error_reached_quota in checks:
             error = 'REGULAR_SUBMISSION_LIMIT'
+
+        elif error_reached_d0_quota in checks:
+            error = 'D0_SUBMISSION_LIMIT'
 
         elif error_already_submitted in checks:
             error = 'ALREADY_SUBMITTED'
