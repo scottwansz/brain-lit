@@ -1,0 +1,20 @@
+# Alpha表达式测试文件
+# 每行一个表达式，以#开头的行为注释
+
+# 正确的表达式
+rank(field1)
+ts_mean(close, 20)
+ts_delay(open, 5)
+if_else(greater(volume, ts_mean(volume, 20)), 1, -1)
+
+# 错误的表达式 - 括号不匹配
+rank(field1
+
+# 错误的表达式 - 未知操作符
+unknown_op(field1)
+
+# 错误的表达式 - 参数不足
+ts_delay(close)
+
+# 复杂的正确表达式
+rank((vec_avg(anl2_consensus_eps_est) - ts_delay(vec_avg(anl2_consensus_eps_est), 20)) / (abs(ts_delay(vec_avg(anl2_consensus_eps_est), 20)) + 0.01))
