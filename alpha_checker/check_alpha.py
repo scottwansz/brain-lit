@@ -248,7 +248,7 @@ def main():
 
 
 if __name__ == '__main__':
-    alpha = """rank(-1 * (((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)) - TS_MEAN((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)), 20)) / (TS_STD((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)), 20) + 0.000001))) * (close / vwap)"""
+    alpha = """rank((vec_avg(if_else(is_nan(vec_avg(anl2_consensus_eps_est)), 0, vec_avg(anl2_consensus_eps_est))) - ts_delay(vec_avg(if_else(is_nan(vec_avg(anl2_consensus_eps_est)), 0, vec_avg(anl2_consensus_eps_est))), 20)) / (abs(ts_delay(vec_avg(if_else(is_nan(vec_avg(anl2_consensus_eps_est)), 0, vec_avg(anl2_consensus_eps_est))), 20)) + 0.01)) + rank((vec_avg(if_else(is_nan(vec_avg(anl2_consensus_sales)), 0, vec_avg(anl2_consensus_sales))) - ts_delay(vec_avg(if_else(is_nan(vec_avg(anl2_consensus_sales)), 0, vec_avg(anl2_consensus_sales))), 20)) / (abs(ts_delay(vec_avg(if_else(is_nan(vec_avg(anl2_consensus_sales)), 0, vec_avg(anl2_consensus_sales))), 20)) + 0.01)) + rank(if_else(is_nan(etz_eps_tsrank), 0, etz_eps_tsrank))"""
 
     check_single_expression(alpha)
     # main()
