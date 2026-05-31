@@ -248,4 +248,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    alpha = """rank(-1 * (((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)) - TS_MEAN((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)), 20)) / (TS_STD((is_nan(ts_backfill(vec_avg(anl2_mean), 20)) ? 0 : ts_backfill(vec_avg(anl2_mean), 20)), 20) + 0.000001))) * (close / vwap)"""
+
+    check_single_expression(alpha)
+    # main()
