@@ -160,10 +160,20 @@ if st.session_state.get('checkable_alpha_stats'):
             # 显示simulate_tasks信息
             st.write("当前检查状态信息:")
             st.json(task_manager.status)
+            
+            # 特别处理THROTTLED状态
+            if task_manager.status.get('status') == 'THROTTLED':
+                st.error("⚠️ API限流错误 (THROTTLED)")
+                st.warning("检测到API被限流，可能是由于多个进程同时访问API导致。请稍后再试。")
 
         if col5.button("停止检查"):
             task_manager.status["stop"] = True
             task_manager.status["details"] = "Stopped by user"
+        
+        # 实时显示THROTTLED警告
+        if task_manager.status.get('status') == 'THROTTLED':
+            st.error("⚠️ API限流错误 (THROTTLED)")
+            st.warning("检测到API被限流，可能是由于多个进程同时访问API导致。请稍后再试。")
 
     else:
         st.info("暂无可检查的Alpha")

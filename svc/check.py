@@ -93,6 +93,21 @@ def check_one_batch(alpha_list, task: dict, manager=None):
         logger.info(f"Alpha {record['alpha_id']} check passed: {len(fail_reasons) == 0}, Fail reasons: {fail_reasons}")
 
         fail_reason_names = [reason.get('name') for reason in fail_reasons]
+        
+        # 检查是否出现THROTTLED错误，如果是则停止整个批处理
+        if 'THROTTLED' in fail_reason_names:
+            logger.warning("API throttled (429), stopping batch processing...")
+            task.update({
+                "status": "THROTTLED",
+                "stop": True,
+                "details": "THROTTLED - API rate limit exceeded by concurrent processes"
+            })
+            
+            # 任务完成后将manager.thread设为None
+            if manager:
+                manager.thread = None
+                
+            return True
         if 'ALREADY_SUBMITTED' in fail_reason_names:
             # Alpha wrbOq51 check passed: False, Fail reasons: [{'name': 'ALREADY_SUBMITTED', 'result': 'FAIL'}]
             update_table(
@@ -196,7 +211,24 @@ def check_alpha(s: AutoLoginSession, alpha_id, task:dict):
         except json.JSONDecodeError:
             logger.error(f"Failed to parse response for alpha {alpha_id}")
             return False, [{'name': 'JSON_DECODE_ERROR'}]
+
+    # 特别处理429 THROTTLED错误
+    elif response.status_code == 429:
+        try:
+            data = response.json()
+            if data.get('detail') == 'THROTTLED':
+                logger.warning(f"Alpha {alpha_id} check failed: THROTTLED")
+                return False, [{'name': 'THROTTLED'}]
+            else:
+                logger.error(f"Failed to check alpha {alpha_id} status_code: {response.status_code}")
+                logger.error(f"Failed to check alpha {alpha_id} response content: {response.content.decode('utf-8') if response.content else 'Empty response'}")
+                return False, [{'name': f'{response.status_code}_ERROR'}]
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse response for alpha {alpha_id}")
+            return False, [{'name': 'JSON_DECODE_ERROR'}]
+
     else:
         logger.error(f"Failed to check alpha {alpha_id} status_code: {response.status_code}")
         logger.error(f"Failed to check alpha {alpha_id} response content: {response.content.decode('utf-8') if response.content else 'Empty response'}")
+        
         return False, [{'name': f'{response.status_code}_ERROR'}]
