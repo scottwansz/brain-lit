@@ -127,7 +127,7 @@ def _render_common_parameters():
     
     # 地区选择 - 添加"所有"选项
     region_options = ["All"] + list(REGION_PARAMS.keys())
-    default_region_index = 1  # 默认选择"All"
+    default_region_index = 2  # 默认选择"0-All 1-USA 2-GLB"
     if st.session_state.selected_region is not None and st.session_state.selected_region in region_options:
         default_region_index = region_options.index(st.session_state.selected_region)
     selected_region_display = st.selectbox(
