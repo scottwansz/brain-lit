@@ -39,4 +39,4 @@ while r.status_code in (301, 302, 303, 307, 308):
     r = client.get(location)
     print("redirect:", r.status_code, r.url, r.headers.get("location"))
 
-print(r.text[:1000])
+print(r.text[:5000])
