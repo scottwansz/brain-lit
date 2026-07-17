@@ -247,7 +247,7 @@ def submit_alpha(s: AutoLoginSession, alpha_id, region, task_info=None):
 
         else:
             # 检查未通过的情形，如sharp值小于1.58
-            fail_reasons = [check for check in checks if check.get('result') == 'FAIL']
+            fail_reasons = [check for check in checks if (check.get('result') == 'FAIL' or check.get('result') == 'ERROR')]
             set_data = {
                 'passed': 1 if len(fail_reasons) == 0 else -1,
                 'fail_reasons': json.dumps(fail_reasons)
