@@ -46,6 +46,14 @@ REGION_PARAMS = {
         "delay": [1, 0],
         "universe": ["TOP600"]
     },
+    "DEU": {
+        "delay": [1, 0],
+        "universe": ["TOP500"]
+    },
+    "GBR": {
+        "delay": [1, 0],
+        "universe": ["TOP700"]
+    },
 }
 
 # 定义可用的分类列表
